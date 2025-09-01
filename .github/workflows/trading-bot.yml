@@ -1,0 +1,56 @@
+# .github/workflows/trading-bot.yml
+name: Trading Bot - EMA Momentum Strategy
+
+on:
+  schedule:
+    # Runs every 6 hours with 5-hour timezone adjustment
+    # GitHub runs in UTC, so these times account for your 5-hour delay:
+    # 06:00 UTC = 01:00 your time
+    # 12:00 UTC = 07:00 your time  
+    # 18:00 UTC = 13:00 your time
+    # 00:00 UTC = 19:00 your time (previous day)
+    - cron: '0 6,12,18,0 * * *'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+jobs:
+  run-trading-strategy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run trading strategy
+      env:
+        API_KEY: ${{ secrets.API_KEY }}
+        API_SECRET: ${{ secrets.API_SECRET }}
+      run: |
+        python main.py  # Replace 'main.py' with your actual Python file name
+        
+    - name: Commit and push data files
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add *.csv *.json *.txt *.pkl
+        git diff --staged --quiet || git commit -m "Update trading data - $(date)"
+        git push
+        
+    - name: Upload logs (optional)
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: trading-logs-${{ github.run_number }}
+        path: logs/
+        retention-days: 7
