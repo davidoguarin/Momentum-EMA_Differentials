@@ -14,7 +14,7 @@ from datetime import datetime
 from data_acquisition import fetch_specific_crypto_data
 from ema_analysis import run_ema_analysis
 from portfolio_simulation import run_momentum_portfolio_simulation
-from config import config, get_api_credentials, get_trading_credentials, get_wallet_config
+from config import config, get_trading_credentials, get_wallet_config
 
 # Configuration flags
 EXTRACT_DATA = False  # Set to True to fetch new data from API
@@ -118,7 +118,7 @@ def main():
             logger.info("Step 1: Starting data acquisition...")
             
             # Get API credentials from environment variables
-            api_key = get_api_credentials()
+            api_key = config.get_api_credentials()
             
             # Fetch specific crypto data and store in database
             data = fetch_specific_crypto_data(api_key=api_key, db_path="crypto_data.db")
