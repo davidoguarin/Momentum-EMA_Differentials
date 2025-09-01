@@ -1610,7 +1610,7 @@ def get_api_credentials() -> Optional[str]:
     print("\nCoinGecko API Setup:")
     print("Note: API key is optional but provides higher rate limits")
     print("You can get a free API key from: https://www.coingecko.com/en/api")
-            print("You can also set COINGECKO_API_KEY environment variable to set your API key permanently")
+    print("You can also set COINGECKO_API_KEY environment variable to set your API key permanently")
     
     use_api = input("Do you have a CoinGecko API key? (y/n): ").lower().strip()
     
