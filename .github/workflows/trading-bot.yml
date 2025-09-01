@@ -33,7 +33,7 @@ jobs:
         WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
         SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       run: |
-        python mais.py
+        python main.py
         
     - name: Commit and push data files
       run: |
