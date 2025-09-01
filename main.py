@@ -14,7 +14,7 @@ from datetime import datetime
 from data_acquisition import fetch_specific_crypto_data
 from ema_analysis import run_ema_analysis
 from portfolio_simulation import run_momentum_portfolio_simulation
-from config import config, get_trading_credentials, get_wallet_config
+from config import config
 
 # Configuration flags
 EXTRACT_DATA = False  # Set to True to fetch new data from API
