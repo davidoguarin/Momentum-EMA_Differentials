@@ -1,0 +1,9 @@
+# CoinGecko API Configuration
+# Copy this file to .env and add your API key
+
+# Get your free API key from: https://www.coingecko.com/en/api
+COINGECKO_API_KEY=your_api_key_here
+
+# Optional: Override default settings
+# TOP_COINS_LIMIT=200
+# HISTORICAL_DAYS=365 
