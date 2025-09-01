@@ -4,11 +4,6 @@ name: Trading Bot - EMA Momentum Strategy
 on:
   schedule:
     # Runs every 6 hours with 5-hour timezone adjustment
-    # GitHub runs in UTC, so these times account for your 5-hour delay:
-    # 06:00 UTC = 01:00 your time
-    # 12:00 UTC = 07:00 your time  
-    # 18:00 UTC = 13:00 your time
-    # 00:00 UTC = 19:00 your time (previous day)
     - cron: '0 6,12,18,0 * * *'
   
   # Allow manual triggering for testing
@@ -38,7 +33,7 @@ jobs:
         WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
         SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       run: |
-        python mais.py  # Your trading bot file
+        python mais.py
         
     - name: Commit and push data files
       run: |
@@ -47,12 +42,3 @@ jobs:
         git add *.csv *.json *.txt *.pkl
         git diff --staged --quiet || git commit -m "Update trading data - $(date)"
         git push
-        
-    - name: Upload logs (optional)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: trading-logs-${{ github.run_number }}
-        path: logs/
-        retention-days: 7
-        if-no-files-found: ignore
