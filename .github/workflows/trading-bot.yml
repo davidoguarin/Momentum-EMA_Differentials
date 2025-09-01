@@ -34,10 +34,11 @@ jobs:
         
     - name: Run trading strategy
       env:
-        API_KEY: ${{ secrets.API_KEY }}
-        API_SECRET: ${{ secrets.API_SECRET }}
+        COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
+        SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       run: |
-        python main.py  # Replace 'main.py' with your actual Python file name
+        python mais.py  # Your trading bot file
         
     - name: Commit and push data files
       run: |
