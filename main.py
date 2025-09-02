@@ -15,8 +15,62 @@ from data_acquisition import fetch_specific_crypto_data
 from ema_analysis import run_ema_analysis
 from portfolio_simulation import run_momentum_portfolio_simulation
 from config import config
-from google_cloud_storage import upload_trading_results_to_gcs
-from data_manager import DataManager
+# from google_cloud_storage import upload_trading_results_to_gcs  # Disabled - no cloud services
+# Data handling functions
+def load_excel_data():
+    """Load existing Excel data and check if updates are needed"""
+    import glob
+    
+    # Load portfolio data
+    portfolio_files = glob.glob("results/momentum_portfolio_simulation_*.xlsx")
+    portfolio_data = None
+    if portfolio_files:
+        latest_file = max(portfolio_files, key=os.path.getmtime)
+        try:
+            portfolio_data = pd.read_excel(latest_file, sheet_name=None)
+            logger.info(f"✅ Loaded portfolio data from {latest_file}")
+        except Exception as e:
+            logger.warning(f"⚠️ Error loading portfolio data: {e}")
+    
+    # Load trading orders
+    trading_orders = pd.DataFrame()
+    if os.path.exists("trading_orders.xlsx"):
+        try:
+            trading_orders = pd.read_excel("trading_orders.xlsx")
+            logger.info(f"✅ Loaded {len(trading_orders)} trading orders")
+        except Exception as e:
+            logger.warning(f"⚠️ Error loading trading orders: {e}")
+    
+    return portfolio_data, trading_orders
+
+def needs_data_update(portfolio_data, trading_orders):
+    """Check if data needs to be updated based on age and completeness"""
+    if portfolio_data is None:
+        logger.info("🔄 No portfolio data - need to generate fresh data")
+        return True
+    
+    if trading_orders.empty:
+        logger.info("🔄 No trading orders - need to generate fresh data")
+        return True
+    
+    # Check if data is recent (less than 6 hours old)
+    try:
+        all_trades = portfolio_data.get('All_Trades', pd.DataFrame())
+        if not all_trades.empty and 'date' in all_trades.columns:
+            latest_trade = pd.to_datetime(all_trades['date']).max()
+            time_since_last = datetime.now() - latest_trade
+            
+            if time_since_last > timedelta(hours=6):
+                logger.info(f"🔄 Data is {time_since_last} old - need to update")
+                return True
+            else:
+                logger.info(f"✅ Data is recent ({time_since_last} old) - using existing data")
+                return False
+    except Exception as e:
+        logger.warning(f"⚠️ Error checking data age: {e}")
+        return True
+    
+    return False
 
 # Configuration flags
 EXTRACT_DATA = False  # Set to True to fetch new data from API
@@ -40,7 +94,8 @@ LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max lev
 def setup_logging():
     """Setup logging configuration"""
     # Create logs directory if it doesn't exist
-    os.makedirs('logs', exist_ok=True)
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
     
     logging.basicConfig(
         level=logging.INFO,
@@ -93,18 +148,18 @@ def main():
     logger.info("Starting Crypto EMA Analysis with Momentum Strategy")
     logger.info(f"Analysis started at: {datetime.now()}")
     
-    # Initialize data manager
-    data_manager = DataManager()
-    data_strategy = data_manager.get_data_strategy()
+    # Load existing data and check if updates are needed
+    portfolio_data, trading_orders = load_excel_data()
+    needs_update = needs_data_update(portfolio_data, trading_orders)
     
     logger.info(f"Configuration:")
-    logger.info(f"  - EXTRACT_DATA: {data_strategy['extract_data']}")
-    logger.info(f"  - RUN_EMA_ANALYSIS: {data_strategy['run_analysis']}")
-    logger.info(f"  - RUN_PORTFOLIO_SIMULATION: {data_strategy['run_simulation']}")
+    logger.info(f"  - EXTRACT_DATA: {EXTRACT_DATA}")
+    logger.info(f"  - RUN_EMA_ANALYSIS: {RUN_EMA_ANALYSIS}")
+    logger.info(f"  - RUN_PORTFOLIO_SIMULATION: {RUN_PORTFOLIO_SIMULATION}")
     logger.info(f"  - DISPLAY_PLOTS: {DISPLAY_PLOTS}")
     logger.info(f"  - TRADING_ENABLED: {TRADING_ENABLED}")
     logger.info(f"  - LEVERAGE_MULTIPLIER: {LEVERAGE_MULTIPLIER:.1f}x (0.0 = no leverage, 1.0 = max leverage)")
-    logger.info(f"  - Using Historical Data: {data_strategy['use_historical']}")
+    logger.info(f"  - Data Update Needed: {needs_update}")
     
     logger.info("EMA and Momentum Strategy Parameters:")
     logger.info(f"  - Short EMA: {MOMENTUM_SHORT_PERIOD}d, Long EMA: {MOMENTUM_LONG_PERIOD}d")
@@ -119,57 +174,55 @@ def main():
     try:
         data_file = None
         portfolio_results = None
-        historical_data = None
-        
-        # Step 0: Load Historical Data in Memory
-        logger.info("Step 0: Loading historical data in memory...")
-        historical_data = data_manager.load_historical_data_in_memory()
         
         # Step 1: Data Acquisition
-        if data_strategy['extract_data']:
+        if EXTRACT_DATA or needs_update:
             logger.info("Step 1: Starting data acquisition...")
             
             # Get API credentials from environment variables
             api_key = config.get_api_credentials()
             
             # Fetch specific crypto data and store in database
-            data = fetch_specific_crypto_data(api_key=api_key)
+            data = fetch_specific_crypto_data(api_key=api_key, db_path="crypto_data.db")
             
-            if data is None:
-                logger.error("Failed to fetch crypto data")
+            if not data:
+                logger.error("No data acquired. Check API connectivity.")
                 return
             
             logger.info(f"Data acquired successfully. Found {data['metadata']['tokens_count']} tokens")
             logger.info(f"Tokens: {', '.join(data['metadata']['tokens_fetched'])}")
             logger.info(f"Database: {data['database_path']}")
         else:
-            logger.info("Step 1: Data acquisition SKIPPED (extract_data = False)")
+            logger.info("Step 1: Data acquisition SKIPPED (EXTRACT_DATA = False)")
             logger.info("Using existing database data...")
         
         # Step 2: EMA Analysis
-        if data_strategy['run_analysis']:
+        if RUN_EMA_ANALYSIS:
             logger.info("Step 2: Starting EMA Analysis...")
             logger.info(f"Short EMA period: {MOMENTUM_SHORT_PERIOD} days, Long EMA period: {MOMENTUM_LONG_PERIOD} days")
             
             ema_results = run_ema_analysis(
                 data_source='database',
+                results_dir='results',
                 short_period=MOMENTUM_SHORT_PERIOD,
                 long_period=MOMENTUM_LONG_PERIOD,
-                display_plots=DISPLAY_PLOTS
+                db_path="crypto_data.db"
             )
             
             if ema_results:
                 logger.info("EMA Analysis completed successfully!")
+                logger.info(f"Results saved to: {ema_results['excel_file']}")
+                logger.info(f"Data shape: {ema_results['data_shape']}")
                 logger.info(f"Tokens analyzed: {ema_results['tokens_analyzed']}")
                 logger.info(f"Results directory: {ema_results['results_dir']}")
             else:
                 logger.error("Error during analysis")
                 return
         else:
-            logger.info("Step 2: EMA Analysis SKIPPED (run_analysis = False)")
+            logger.info("Step 2: EMA Analysis SKIPPED (RUN_EMA_ANALYSIS = False)")
         
         # Step 3: Portfolio Simulation (Momentum Strategy Only)
-        if data_strategy['run_simulation']:
+        if RUN_PORTFOLIO_SIMULATION and needs_update:
             logger.info("Step 3: Starting Momentum Portfolio Simulation...")
             
             logger.info("Using MOMENTUM Portfolio Strategy:")
@@ -183,31 +236,16 @@ def main():
             logger.info(f"  - Strong signals: Double USD amount when stiffness > {STIFFNESS_THRESHOLD}σ above threshold")
             logger.info(f"  - Leverage stays constant, only USD amount increases")
             logger.info(f"  - Stiffness = (EMA Slope - Threshold) / Standard Deviation")
-            
-            # Use historical data if available, otherwise use database
-            if historical_data and historical_data.get('crypto_data') is not None:
-                logger.info("📊 Using historical crypto data in memory for simulation")
-                # TODO: Modify run_momentum_portfolio_simulation to accept DataFrame instead of db_path
-                portfolio_results = run_momentum_portfolio_simulation(
-                    db_path="crypto_data.db",  # Will be updated to use historical_data
-                    short_period=MOMENTUM_SHORT_PERIOD,
-                    long_period=MOMENTUM_LONG_PERIOD,
-                    slope_window=MOMENTUM_SLOPE_WINDOW,
-                    sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
-                    position_size=BASE_POSITION_SIZE,
-                    stiffness_threshold=STIFFNESS_THRESHOLD
-                )
-            else:
-                logger.info("�� Using database for simulation (no historical data available)")
-                portfolio_results = run_momentum_portfolio_simulation(
-                    db_path="crypto_data.db",
-                    short_period=MOMENTUM_SHORT_PERIOD,
-                    long_period=MOMENTUM_LONG_PERIOD,
-                    slope_window=MOMENTUM_SLOPE_WINDOW,
-                    sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
-                    position_size=BASE_POSITION_SIZE,
-                    stiffness_threshold=STIFFNESS_THRESHOLD
-                )
+                
+            portfolio_results = run_momentum_portfolio_simulation(
+                db_path="crypto_data.db",
+                short_period=MOMENTUM_SHORT_PERIOD,
+                long_period=MOMENTUM_LONG_PERIOD,
+                slope_window=MOMENTUM_SLOPE_WINDOW,
+                sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
+                position_size=BASE_POSITION_SIZE,
+                stiffness_threshold=STIFFNESS_THRESHOLD
+            )
             
             if portfolio_results:
                 logger.info("Portfolio Simulation completed successfully!")
@@ -226,11 +264,15 @@ def main():
                     logger.info(f"  - Total position value: ${stiffness_stats['total_position_value']:.2f}")
                     logger.info(f"  - Stiffness threshold for double positions: >{stiffness_stats['stiffness_threshold']}σ")
                     logger.info(f"  - Leverage multiplier: {LEVERAGE_MULTIPLIER:.1f}x")
+                
+                # Data is already in portfolio_results variable
             else:
                 logger.error("Error during portfolio simulation")
                 return
         else:
-            logger.info("Step 3: Portfolio Simulation SKIPPED (run_simulation = False)")
+            logger.info("Step 3: Portfolio Simulation SKIPPED (using existing data)")
+            # Use existing data from Excel files
+            portfolio_results = portfolio_data
         
         # Step 4: Trading Execution (if requested)
         if TRADING_ENABLED:
@@ -253,7 +295,7 @@ def main():
                     return
                 
                 # Use portfolio simulation results if available, otherwise calculate new signals
-                if data_strategy['run_simulation'] and portfolio_results and TRADING_ENABLED:
+                if RUN_PORTFOLIO_SIMULATION and portfolio_results and TRADING_ENABLED:
                     logger.info("📊 Using portfolio simulation results for trading execution")
                     # Extract latest signals from portfolio simulation
                     signals = {}
@@ -276,45 +318,52 @@ def main():
                     # Calculate latest signals
                     signals = calculate_signals(data)
                     if not signals:
-                        logger.warning("⚠️ No signals calculated")
+                        logger.warning("⚠️ No signals calculated, no trading opportunities")
                         return
                 
-                # Find trading opportunities
+                # Find current trading opportunities
                 opportunities = find_trading_opportunities(signals)
+                
                 if not opportunities:
                     logger.info("📊 No trading opportunities found at this time")
-                    return
-                
-                logger.info(f"📊 Found {len(opportunities)} trading opportunities")
-                
-                # Execute trades
-                successful_trades = 0
-                failed_trades = 0
-                
-                for opportunity in opportunities:
-                    try:
-                        result = execute_trade(opportunity, trading_enabled=TRADING_ENABLED)
-                        if result and result.get('success', False):
+                else:
+                    logger.info(f"🎯 Found {len(opportunities)} trading opportunities:")
+                    
+                    # Execute trades
+                    successful_trades = 0
+                    failed_trades = 0
+                    
+                    for i, opportunity in enumerate(opportunities, 1):
+                        logger.info(f"Trade {i}/{len(opportunities)}:")
+                        success = execute_trade(exchange, opportunity, TRADING_ENABLED)
+                        
+                        if success:
+                            logger.info(f"✅ Trade {i} completed successfully")
                             successful_trades += 1
-                            logger.info(f"✅ Trade executed successfully: {opportunity['token_name']} {opportunity['signal_type']}")
                         else:
+                            logger.error(f"❌ Trade {i} failed")
                             failed_trades += 1
-                            logger.error(f"❌ Trade failed: {opportunity['token_name']} {opportunity['signal_type']}")
-                    except Exception as e:
-                        failed_trades += 1
-                        logger.error(f"❌ Trade execution error: {str(e)}")
-                
-                logger.info(f"�� Trading Summary: {successful_trades} successful, {failed_trades} failed")
-                
-                # Display recent errors from trading_errors.log
-                if os.path.exists('trading_errors.log'):
-                    logger.info("📝 Recent trading errors:")
+                        
+                        logger.info("-" * 30)
+                    
+                    # Display trading session summary
+                    logger.info("📊 TRADING SESSION SUMMARY:")
+                    logger.info(f"  - Total Opportunities: {len(opportunities)}")
+                    
+                    logger.info(f"  - Successful Trades: {successful_trades}")
+                    logger.info(f"  - Failed Trades: {failed_trades}")
+                    
+                    # Check for error log file
                     try:
                         with open('trading_errors.log', 'r') as f:
-                            lines = f.readlines()
-                            for line in lines[-5:]:  # Show last 5 lines
-                                if line.strip() and not line.startswith('='):
-                                    logger.info(f"    {line}")
+                            error_content = f.read()
+                            if error_content.strip():
+                                logger.info("📝 Recent Errors (see trading_errors.log for details):")
+                                # Show last few error lines
+                                error_lines = error_content.strip().split('\n')[-20:]
+                                for line in error_lines:
+                                    if line.strip() and not line.startswith('='):
+                                        logger.info(f"    {line}")
                     except FileNotFoundError:
                         logger.info("📝 No error log file found")
                     
@@ -328,18 +377,23 @@ def main():
         else:
             logger.info("Step 4: Trading Execution SKIPPED (TRADING_ENABLED = False)")
         
-        # Step 5: Upload results to Google Cloud Storage
-        logger.info("Step 5: Uploading results to Google Cloud Storage...")
+        # Step 5: Save data to Excel files (for GitHub Actions commit)
+        logger.info("Step 5: Saving data to Excel files...")
         try:
-            upload_result = upload_trading_results_to_gcs("results")
-            if upload_result.get("success", False):
-                logger.info(f"✅ Successfully uploaded {len(upload_result.get('uploaded_files', []))} files to Google Cloud Storage")
-                if upload_result.get("failed_files"):
-                    logger.warning(f"⚠️ Failed to upload {len(upload_result['failed_files'])} files")
-            else:
-                logger.warning(f"⚠️ Google Cloud Storage upload failed: {upload_result.get('error', 'Unknown error')}")
+            if needs_update and portfolio_results:
+                # Save new portfolio results
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                portfolio_file = f"results/momentum_portfolio_simulation_{timestamp}.xlsx"
+                
+                with pd.ExcelWriter(portfolio_file, engine='openpyxl') as writer:
+                    for sheet_name, df in portfolio_results.items():
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+                logger.info(f"✅ Saved portfolio data to {portfolio_file}")
+            
+            logger.info("✅ Data save completed")
         except Exception as e:
-            logger.warning(f"⚠️ Google Cloud Storage upload error: {str(e)}")
+            logger.warning(f"⚠️ Error saving to Excel: {str(e)}")
         
         # Step 6: Analysis completed
         logger.info("Step 6: Analysis completed successfully!")
@@ -351,4 +405,4 @@ def main():
         logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
-    main()
+    main() 
