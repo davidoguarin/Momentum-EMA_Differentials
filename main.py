@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 # =============================================================================
 
 # Main execution flags
-EXTRACT_DATA = False  # Set to True to fetch new data from API
+EXTRACT_DATA = True  # Set to True to fetch new data from API
 RUN_EMA_ANALYSIS = True  # Set to True to run EMA analysis
 RUN_PORTFOLIO_SIMULATION = True  # Set to True to run portfolio simulation
 DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
