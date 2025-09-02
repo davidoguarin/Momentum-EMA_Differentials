@@ -12,7 +12,9 @@ on:
 jobs:
   run-trading-strategy:
     runs-on: ubuntu-latest
-    
+
+    permissions:
+      contents: write  # This allows the workflow to push changes back
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
