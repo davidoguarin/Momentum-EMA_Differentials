@@ -30,3 +30,8 @@ tqdm>=4.64.0  # Progress bars
 # Ethereum wallet support
 eth-account>=0.8.0
 
+# Google Cloud Storage
+google-cloud-storage>=2.10.0
+
+
+
