@@ -4,7 +4,7 @@ name: Trading Bot - EMA Momentum Strategy
 on:
   schedule:
     # Runs every 6 hours with 5-hour timezone adjustment
-    - cron: '0 6,12,18,0 * * *'
+    - cron: '0 12,0 * * *'
   
   # Allow manual triggering for testing
   workflow_dispatch:
