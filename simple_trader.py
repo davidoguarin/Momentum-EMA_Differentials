@@ -51,6 +51,46 @@ LEVERAGE_MULTIPLIER = None
 ORDERS_FILE = "trading_orders.xlsx"
 open_positions = {}  # Track open positions for PnL calculation
 
+# Initialize configuration immediately when module is imported
+def _initialize_config():
+    """Initialize configuration from environment variables and main.py"""
+    global BASE_POSITION_SIZE, STIFFNESS_THRESHOLD, TRADING_ENABLED
+    global SHORT_EMA_PERIOD, LONG_EMA_PERIOD, SLOPE_WINDOW, SIGMA_MULTIPLIER
+    global LEVERAGE_MULTIPLIER, WALLET_ADDRESS, SEED_PHRASE
+    
+    # First, try to load from environment variables
+    wallet_addr, seed_phrase = config.get_wallet_config()
+    if wallet_addr and seed_phrase:
+        WALLET_ADDRESS = wallet_addr
+        SEED_PHRASE = seed_phrase
+        print(f"✅ Wallet configuration loaded from environment variables")
+    
+    # Then try to update from main.py if available
+    try:
+        import main
+        BASE_POSITION_SIZE = main.BASE_POSITION_SIZE
+        STIFFNESS_THRESHOLD = main.STIFFNESS_THRESHOLD
+        TRADING_ENABLED = main.TRADING_ENABLED
+        SHORT_EMA_PERIOD = main.MOMENTUM_SHORT_PERIOD
+        LONG_EMA_PERIOD = main.MOMENTUM_LONG_PERIOD
+        SLOPE_WINDOW = main.MOMENTUM_SLOPE_WINDOW
+        SIGMA_MULTIPLIER = main.MOMENTUM_SIGMA_MULTIPLIER
+        LEVERAGE_MULTIPLIER = main.LEVERAGE_MULTIPLIER
+        
+        print(f"✅ Configuration updated from main.py")
+        print(f"   Base Position Size: ${BASE_POSITION_SIZE}")
+        print(f"   Stiffness Threshold: {STIFFNESS_THRESHOLD}σ")
+        print(f"   Trading Enabled: {'✅ YES' if TRADING_ENABLED else '❌ NO'}")
+        print(f"   Leverage Multiplier: {LEVERAGE_MULTIPLIER:.1f}x")
+        
+    except ImportError:
+        print("⚠️ main.py not available, using default configuration")
+    except Exception as e:
+        print(f"⚠️ Error loading configuration from main.py: {e}")
+    
+# Call initialization immediately (without load_existing_orders for now)
+_initialize_config()
+
 def update_config_from_main():
     """Update configuration from main.py if available and load environment variables"""
     global BASE_POSITION_SIZE, STIFFNESS_THRESHOLD, TRADING_ENABLED
@@ -134,6 +174,9 @@ def load_existing_orders():
     else:
         print("ℹ️ No existing orders file found, starting fresh")
         return None
+
+# Load existing orders after function is defined
+load_existing_orders()
 
 def log_error_to_file(error_data):
     """
@@ -1005,9 +1048,6 @@ def main():
         print("-" * 30)
     
     print("🎯 Trading session completed!")
-
-# Initialize configuration when module is imported
-update_config_from_main()
 
 if __name__ == "__main__":
     main() 
