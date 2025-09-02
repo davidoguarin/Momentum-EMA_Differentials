@@ -27,12 +27,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Setup Google Cloud credentials
-      if: env.GCS_CREDENTIALS_JSON != ''
-      run: |
-        echo "$GCS_CREDENTIALS_JSON" > gcs-credentials.json
-        export GCS_CREDENTIALS_PATH=gcs-credentials.json
-        
+
     - name: Run trading strategy
       env:
         COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
@@ -41,15 +36,13 @@ jobs:
         BASE_POSITION_SIZE: 50
         STIFFNESS_THRESHOLD: 1.5
         LEVERAGE_MULTIPLIER: 1.0
-        GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-        GCS_CREDENTIALS_JSON: ${{ secrets.GCS_CREDENTIALS_JSON }}
-        GCS_CREDENTIALS_PATH: gcs-credentials.json
+
       run: |
         echo "Environment variables check:"
         echo "WALLET_ADDRESS: ${WALLET_ADDRESS:0:10}..."
         echo "SEED_PHRASE: ${SEED_PHRASE:0:20}..."
         echo "BASE_POSITION_SIZE: $BASE_POSITION_SIZE"
-        echo "GCS_BUCKET_NAME: $GCS_BUCKET_NAME"
+
         python main.py
         
     - name: Commit and push data files
