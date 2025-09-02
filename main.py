@@ -40,8 +40,7 @@ LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max lev
 def setup_logging():
     """Setup logging configuration"""
     # Create logs directory if it doesn't exist
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
+    os.makedirs('logs', exist_ok=True)
     
     logging.basicConfig(
         level=logging.INFO,
@@ -134,10 +133,10 @@ def main():
             api_key = config.get_api_credentials()
             
             # Fetch specific crypto data and store in database
-            data = fetch_specific_crypto_data(api_key=api_key, db_path="crypto_data.db")
+            data = fetch_specific_crypto_data(api_key=api_key)
             
-            if not data:
-                logger.error("No data acquired. Check API connectivity.")
+            if data is None:
+                logger.error("Failed to fetch crypto data")
                 return
             
             logger.info(f"Data acquired successfully. Found {data['metadata']['tokens_count']} tokens")
@@ -154,16 +153,13 @@ def main():
             
             ema_results = run_ema_analysis(
                 data_source='database',
-                results_dir='results',
                 short_period=MOMENTUM_SHORT_PERIOD,
                 long_period=MOMENTUM_LONG_PERIOD,
-                db_path="crypto_data.db"
+                display_plots=DISPLAY_PLOTS
             )
             
             if ema_results:
                 logger.info("EMA Analysis completed successfully!")
-                logger.info(f"Results saved to: {ema_results['excel_file']}")
-                logger.info(f"Data shape: {ema_results['data_shape']}")
                 logger.info(f"Tokens analyzed: {ema_results['tokens_analyzed']}")
                 logger.info(f"Results directory: {ema_results['results_dir']}")
             else:
@@ -202,7 +198,7 @@ def main():
                     stiffness_threshold=STIFFNESS_THRESHOLD
                 )
             else:
-                logger.info("📊 Using database for simulation (no historical data available)")
+                logger.info("�� Using database for simulation (no historical data available)")
                 portfolio_results = run_momentum_portfolio_simulation(
                     db_path="crypto_data.db",
                     short_period=MOMENTUM_SHORT_PERIOD,
@@ -280,52 +276,45 @@ def main():
                     # Calculate latest signals
                     signals = calculate_signals(data)
                     if not signals:
-                        logger.warning("⚠️ No signals calculated, no trading opportunities")
+                        logger.warning("⚠️ No signals calculated")
                         return
                 
-                # Find current trading opportunities
+                # Find trading opportunities
                 opportunities = find_trading_opportunities(signals)
-                
                 if not opportunities:
                     logger.info("📊 No trading opportunities found at this time")
-                else:
-                    logger.info(f"🎯 Found {len(opportunities)} trading opportunities:")
-                    
-                    # Execute trades
-                    successful_trades = 0
-                    failed_trades = 0
-                    
-                    for i, opportunity in enumerate(opportunities, 1):
-                        logger.info(f"Trade {i}/{len(opportunities)}:")
-                        success = execute_trade(exchange, opportunity, TRADING_ENABLED)
-                        
-                        if success:
-                            logger.info(f"✅ Trade {i} completed successfully")
+                    return
+                
+                logger.info(f"📊 Found {len(opportunities)} trading opportunities")
+                
+                # Execute trades
+                successful_trades = 0
+                failed_trades = 0
+                
+                for opportunity in opportunities:
+                    try:
+                        result = execute_trade(opportunity, trading_enabled=TRADING_ENABLED)
+                        if result and result.get('success', False):
                             successful_trades += 1
+                            logger.info(f"✅ Trade executed successfully: {opportunity['token_name']} {opportunity['signal_type']}")
                         else:
-                            logger.error(f"❌ Trade {i} failed")
                             failed_trades += 1
-                        
-                        logger.info("-" * 30)
-                    
-                    # Display trading session summary
-                    logger.info("📊 TRADING SESSION SUMMARY:")
-                    logger.info(f"  - Total Opportunities: {len(opportunities)}")
-                    
-                    logger.info(f"  - Successful Trades: {successful_trades}")
-                    logger.info(f"  - Failed Trades: {failed_trades}")
-                    
-                    # Check for error log file
+                            logger.error(f"❌ Trade failed: {opportunity['token_name']} {opportunity['signal_type']}")
+                    except Exception as e:
+                        failed_trades += 1
+                        logger.error(f"❌ Trade execution error: {str(e)}")
+                
+                logger.info(f"�� Trading Summary: {successful_trades} successful, {failed_trades} failed")
+                
+                # Display recent errors from trading_errors.log
+                if os.path.exists('trading_errors.log'):
+                    logger.info("📝 Recent trading errors:")
                     try:
                         with open('trading_errors.log', 'r') as f:
-                            error_content = f.read()
-                            if error_content.strip():
-                                logger.info("📝 Recent Errors (see trading_errors.log for details):")
-                                # Show last few error lines
-                                error_lines = error_content.strip().split('\n')[-20:]
-                                for line in error_lines:
-                                    if line.strip() and not line.startswith('='):
-                                        logger.info(f"    {line}")
+                            lines = f.readlines()
+                            for line in lines[-5:]:  # Show last 5 lines
+                                if line.strip() and not line.startswith('='):
+                                    logger.info(f"    {line}")
                     except FileNotFoundError:
                         logger.info("📝 No error log file found")
                     
@@ -362,4 +351,4 @@ def main():
         logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
-    main() s
+    main()
