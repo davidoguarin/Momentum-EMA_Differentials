@@ -29,6 +29,8 @@ class Config:
     WALLET_ADDRESS = os.environ.get('WALLET_ADDRESS')
     SEED_PHRASE = os.environ.get('SEED_PHRASE')
     
+
+    
     # Trading Configuration
     BASE_POSITION_SIZE = int(os.environ.get('BASE_POSITION_SIZE', '50'))
     STIFFNESS_THRESHOLD = float(os.environ.get('STIFFNESS_THRESHOLD', '1.5'))
