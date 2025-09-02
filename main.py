@@ -186,7 +186,7 @@ def main():
         portfolio_results = None
         
         # Step 1: Data Acquisition
-        if EXTRACT_DATA or needs_update:
+        if EXTRACT_DATA:
             logger.info("Step 1: Starting data acquisition...")
             
             # Get API credentials from environment variables
@@ -232,7 +232,7 @@ def main():
             logger.info("Step 2: EMA Analysis SKIPPED (RUN_EMA_ANALYSIS = False)")
         
         # Step 3: Portfolio Simulation (Momentum Strategy Only)
-        if RUN_PORTFOLIO_SIMULATION and needs_update:
+        if RUN_PORTFOLIO_SIMULATION and EXTRACT_DATA:
             logger.info("Step 3: Starting Momentum Portfolio Simulation...")
             
             logger.info("Using MOMENTUM Portfolio Strategy:")
@@ -256,7 +256,7 @@ def main():
                 position_size=BASE_POSITION_SIZE,
                 stiffness_threshold=STIFFNESS_THRESHOLD
             )
-                
+            
             if portfolio_results:
                 logger.info("Portfolio Simulation completed successfully!")
                 logger.info(f"Total PnL: {portfolio_results['summary']['total_pnl']:.2f}%")
