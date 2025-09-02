@@ -15,6 +15,8 @@ from data_acquisition import fetch_specific_crypto_data
 from ema_analysis import run_ema_analysis
 from portfolio_simulation import run_momentum_portfolio_simulation
 from config import config
+from google_cloud_storage import upload_trading_results_to_gcs
+from data_manager import DataManager
 
 # Configuration flags
 EXTRACT_DATA = False  # Set to True to fetch new data from API
@@ -92,13 +94,18 @@ def main():
     logger.info("Starting Crypto EMA Analysis with Momentum Strategy")
     logger.info(f"Analysis started at: {datetime.now()}")
     
+    # Initialize data manager
+    data_manager = DataManager()
+    data_strategy = data_manager.get_data_strategy()
+    
     logger.info(f"Configuration:")
-    logger.info(f"  - EXTRACT_DATA: {EXTRACT_DATA}")
-    logger.info(f"  - RUN_EMA_ANALYSIS: {RUN_EMA_ANALYSIS}")
-    logger.info(f"  - RUN_PORTFOLIO_SIMULATION: {RUN_PORTFOLIO_SIMULATION}")
+    logger.info(f"  - EXTRACT_DATA: {data_strategy['extract_data']}")
+    logger.info(f"  - RUN_EMA_ANALYSIS: {data_strategy['run_analysis']}")
+    logger.info(f"  - RUN_PORTFOLIO_SIMULATION: {data_strategy['run_simulation']}")
     logger.info(f"  - DISPLAY_PLOTS: {DISPLAY_PLOTS}")
     logger.info(f"  - TRADING_ENABLED: {TRADING_ENABLED}")
     logger.info(f"  - LEVERAGE_MULTIPLIER: {LEVERAGE_MULTIPLIER:.1f}x (0.0 = no leverage, 1.0 = max leverage)")
+    logger.info(f"  - Using Historical Data: {data_strategy['use_historical']}")
     
     logger.info("EMA and Momentum Strategy Parameters:")
     logger.info(f"  - Short EMA: {MOMENTUM_SHORT_PERIOD}d, Long EMA: {MOMENTUM_LONG_PERIOD}d")
@@ -112,9 +119,15 @@ def main():
     
     try:
         data_file = None
+        portfolio_results = None
+        historical_data = None
+        
+        # Step 0: Load Historical Data in Memory
+        logger.info("Step 0: Loading historical data in memory...")
+        historical_data = data_manager.load_historical_data_in_memory()
         
         # Step 1: Data Acquisition
-        if EXTRACT_DATA:
+        if data_strategy['extract_data']:
             logger.info("Step 1: Starting data acquisition...")
             
             # Get API credentials from environment variables
@@ -131,11 +144,11 @@ def main():
             logger.info(f"Tokens: {', '.join(data['metadata']['tokens_fetched'])}")
             logger.info(f"Database: {data['database_path']}")
         else:
-            logger.info("Step 1: Data acquisition SKIPPED (EXTRACT_DATA = False)")
+            logger.info("Step 1: Data acquisition SKIPPED (extract_data = False)")
             logger.info("Using existing database data...")
         
         # Step 2: EMA Analysis
-        if RUN_EMA_ANALYSIS:
+        if data_strategy['run_analysis']:
             logger.info("Step 2: Starting EMA Analysis...")
             logger.info(f"Short EMA period: {MOMENTUM_SHORT_PERIOD} days, Long EMA period: {MOMENTUM_LONG_PERIOD} days")
             
@@ -157,10 +170,10 @@ def main():
                 logger.error("Error during analysis")
                 return
         else:
-            logger.info("Step 2: EMA Analysis SKIPPED (RUN_EMA_ANALYSIS = False)")
+            logger.info("Step 2: EMA Analysis SKIPPED (run_analysis = False)")
         
         # Step 3: Portfolio Simulation (Momentum Strategy Only)
-        if RUN_PORTFOLIO_SIMULATION:
+        if data_strategy['run_simulation']:
             logger.info("Step 3: Starting Momentum Portfolio Simulation...")
             
             logger.info("Using MOMENTUM Portfolio Strategy:")
@@ -174,16 +187,31 @@ def main():
             logger.info(f"  - Strong signals: Double USD amount when stiffness > {STIFFNESS_THRESHOLD}σ above threshold")
             logger.info(f"  - Leverage stays constant, only USD amount increases")
             logger.info(f"  - Stiffness = (EMA Slope - Threshold) / Standard Deviation")
-                
-            portfolio_results = run_momentum_portfolio_simulation(
-                db_path="crypto_data.db",
-                short_period=MOMENTUM_SHORT_PERIOD,
-                long_period=MOMENTUM_LONG_PERIOD,
-                slope_window=MOMENTUM_SLOPE_WINDOW,
-                sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
-                position_size=BASE_POSITION_SIZE,
-                stiffness_threshold=STIFFNESS_THRESHOLD
-            )
+            
+            # Use historical data if available, otherwise use database
+            if historical_data and historical_data.get('crypto_data') is not None:
+                logger.info("📊 Using historical crypto data in memory for simulation")
+                # TODO: Modify run_momentum_portfolio_simulation to accept DataFrame instead of db_path
+                portfolio_results = run_momentum_portfolio_simulation(
+                    db_path="crypto_data.db",  # Will be updated to use historical_data
+                    short_period=MOMENTUM_SHORT_PERIOD,
+                    long_period=MOMENTUM_LONG_PERIOD,
+                    slope_window=MOMENTUM_SLOPE_WINDOW,
+                    sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
+                    position_size=BASE_POSITION_SIZE,
+                    stiffness_threshold=STIFFNESS_THRESHOLD
+                )
+            else:
+                logger.info("📊 Using database for simulation (no historical data available)")
+                portfolio_results = run_momentum_portfolio_simulation(
+                    db_path="crypto_data.db",
+                    short_period=MOMENTUM_SHORT_PERIOD,
+                    long_period=MOMENTUM_LONG_PERIOD,
+                    slope_window=MOMENTUM_SLOPE_WINDOW,
+                    sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
+                    position_size=BASE_POSITION_SIZE,
+                    stiffness_threshold=STIFFNESS_THRESHOLD
+                )
             
             if portfolio_results:
                 logger.info("Portfolio Simulation completed successfully!")
@@ -206,7 +234,7 @@ def main():
                 logger.error("Error during portfolio simulation")
                 return
         else:
-            logger.info("Step 3: Portfolio Simulation SKIPPED (RUN_PORTFOLIO_SIMULATION = False)")
+            logger.info("Step 3: Portfolio Simulation SKIPPED (run_simulation = False)")
         
         # Step 4: Trading Execution (if requested)
         if TRADING_ENABLED:
@@ -229,7 +257,7 @@ def main():
                     return
                 
                 # Use portfolio simulation results if available, otherwise calculate new signals
-                if RUN_PORTFOLIO_SIMULATION and portfolio_results and TRADING_ENABLED:
+                if data_strategy['run_simulation'] and portfolio_results and TRADING_ENABLED:
                     logger.info("📊 Using portfolio simulation results for trading execution")
                     # Extract latest signals from portfolio simulation
                     signals = {}
@@ -311,8 +339,21 @@ def main():
         else:
             logger.info("Step 4: Trading Execution SKIPPED (TRADING_ENABLED = False)")
         
-        # Step 5: Analysis completed
-        logger.info("Step 5: Analysis completed successfully!")
+        # Step 5: Upload results to Google Cloud Storage
+        logger.info("Step 5: Uploading results to Google Cloud Storage...")
+        try:
+            upload_result = upload_trading_results_to_gcs("results")
+            if upload_result.get("success", False):
+                logger.info(f"✅ Successfully uploaded {len(upload_result.get('uploaded_files', []))} files to Google Cloud Storage")
+                if upload_result.get("failed_files"):
+                    logger.warning(f"⚠️ Failed to upload {len(upload_result['failed_files'])} files")
+            else:
+                logger.warning(f"⚠️ Google Cloud Storage upload failed: {upload_result.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.warning(f"⚠️ Google Cloud Storage upload error: {str(e)}")
+        
+        # Step 6: Analysis completed
+        logger.info("Step 6: Analysis completed successfully!")
         logger.info(f"Analysis finished at: {datetime.now()}")
         
     except Exception as e:
@@ -321,4 +362,4 @@ def main():
         logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
-    main() 
+    main() s
