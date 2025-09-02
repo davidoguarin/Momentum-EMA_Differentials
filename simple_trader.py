@@ -64,6 +64,10 @@ def _initialize_config():
         WALLET_ADDRESS = wallet_addr
         SEED_PHRASE = seed_phrase
         print(f"✅ Wallet configuration loaded from environment variables")
+    else:
+        print(f"❌ Wallet configuration NOT loaded from environment variables")
+        print(f"  WALLET_ADDRESS: {wallet_addr}")
+        print(f"  SEED_PHRASE: {'Set' if seed_phrase else 'Not set'}")
     
     # Then try to update from main.py if available
     try:
@@ -421,6 +425,14 @@ def setup_logging():
 def setup_hyperliquid():
     """Setup Hyperliquid connection"""
     try:
+        if not SEED_PHRASE:
+            print("❌ SEED_PHRASE is None or empty - cannot setup Hyperliquid")
+            return None
+            
+        if not WALLET_ADDRESS:
+            print("❌ WALLET_ADDRESS is None or empty - cannot setup Hyperliquid")
+            return None
+        
         # Derive private key from seed phrase
         private_key = Account.from_mnemonic(SEED_PHRASE).key.hex()
         
