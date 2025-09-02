@@ -32,9 +32,9 @@ jobs:
         COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
         WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
         SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
-        BASE_POSITION_SIZE: ${{ secrets.BASE_POSITION_SIZE || '50' }}
-        STIFFNESS_THRESHOLD: ${{ secrets.STIFFNESS_THRESHOLD || '1.5' }}
-        LEVERAGE_MULTIPLIER: ${{ secrets.LEVERAGE_MULTIPLIER || '1.0' }}
+        BASE_POSITION_SIZE: 50
+        STIFFNESS_THRESHOLD: 1.5
+        LEVERAGE_MULTIPLIER: 1.0
       run: |
         echo "Environment variables check:"
         echo "WALLET_ADDRESS: ${WALLET_ADDRESS:0:10}..."
