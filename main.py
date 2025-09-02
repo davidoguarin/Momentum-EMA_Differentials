@@ -232,57 +232,61 @@ def main():
             logger.info("Step 2: EMA Analysis SKIPPED (RUN_EMA_ANALYSIS = False)")
         
         # Step 3: Portfolio Simulation (Momentum Strategy Only)
-        if RUN_PORTFOLIO_SIMULATION and EXTRACT_DATA:
-            logger.info("Step 3: Starting Momentum Portfolio Simulation...")
-            
-            logger.info("Using MOMENTUM Portfolio Strategy:")
-            logger.info("Trading Rules:")
-            logger.info(f"  - BUY: EMA Slope > Adaptive Threshold (mean + {MOMENTUM_SIGMA_MULTIPLIER}σ) AND Volume EMA Slope > 0")
-            logger.info(f"  - SELL: EMA Slope < 0 (momentum turning negative)")
-            logger.info(f"  - SELL_VOLUME: Volume EMA Slope < 0 AND Volume EMA Difference < 10% (volume declining and low)")
-            logger.info(f"  - Adaptive Threshold: Rolling {MOMENTUM_SLOPE_WINDOW}d window, {MOMENTUM_SIGMA_MULTIPLIER}σ above mean")
-            logger.info("Position Sizing (Stiffness-based with Leverage):")
-            logger.info(f"  - Normal positions: Base position size (${BASE_POSITION_SIZE}) × {LEVERAGE_MULTIPLIER:.1f}x leverage")
-            logger.info(f"  - Strong signals: Double USD amount when stiffness > {STIFFNESS_THRESHOLD}σ above threshold")
-            logger.info(f"  - Leverage stays constant, only USD amount increases")
-            logger.info(f"  - Stiffness = (EMA Slope - Threshold) / Standard Deviation")
+        if RUN_PORTFOLIO_SIMULATION:
+            if EXTRACT_DATA:
+                logger.info("Step 3: Starting Momentum Portfolio Simulation (with fresh data)...")
                 
-            portfolio_results = run_momentum_portfolio_simulation(
-                db_path="crypto_data.db",
-                short_period=MOMENTUM_SHORT_PERIOD,
-                long_period=MOMENTUM_LONG_PERIOD,
-                slope_window=MOMENTUM_SLOPE_WINDOW,
-                sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
-                position_size=BASE_POSITION_SIZE,
-                stiffness_threshold=STIFFNESS_THRESHOLD
-            )
-            
-            if portfolio_results:
-                logger.info("Portfolio Simulation completed successfully!")
-                logger.info(f"Total PnL: {portfolio_results['summary']['total_pnl']:.2f}%")
-                logger.info(f"Total Trades: {portfolio_results['summary']['total_trades']}")
-                logger.info(f"Overall Win Rate: {portfolio_results['summary']['overall_win_rate']:.1f}%")
+                logger.info("Using MOMENTUM Portfolio Strategy:")
+                logger.info("Trading Rules:")
+                logger.info(f"  - BUY: EMA Slope > Adaptive Threshold (mean + {MOMENTUM_SIGMA_MULTIPLIER}σ) AND Volume EMA Slope > 0")
+                logger.info(f"  - SELL: EMA Slope < 0 (momentum turning negative)")
+                logger.info(f"  - SELL_VOLUME: Volume EMA Slope < 0 AND Volume EMA Difference < 10% (volume declining and low)")
+                logger.info(f"  - Adaptive Threshold: Rolling {MOMENTUM_SLOPE_WINDOW}d window, {MOMENTUM_SIGMA_MULTIPLIER}σ above mean")
+                logger.info("Position Sizing (Stiffness-based with Leverage):")
+                logger.info(f"  - Normal positions: Base position size (${BASE_POSITION_SIZE}) × {LEVERAGE_MULTIPLIER:.1f}x leverage")
+                logger.info(f"  - Strong signals: Double USD amount when stiffness > {STIFFNESS_THRESHOLD}σ above threshold")
+                logger.info(f"  - Leverage stays constant, only USD amount increases")
+                logger.info(f"  - Stiffness = (EMA Slope - Threshold) / Standard Deviation")
                 
-                # Display stiffness-based position sizing statistics
-                if 'stiffness_stats' in portfolio_results['summary']:
-                    stiffness_stats = portfolio_results['summary']['stiffness_stats']
-                    logger.info("Stiffness-based Position Sizing Results (with Leverage):")
-                    logger.info(f"  - Normal positions: {stiffness_stats['normal_positions']}")
-                    logger.info(f"  - Double-size positions: {stiffness_stats['double_positions']}")
-                    logger.info(f"  - Average stiffness: {stiffness_stats['avg_stiffness']:.2f}σ")
-                    logger.info(f"  - Maximum stiffness: {stiffness_stats['max_stiffness']:.2f}σ")
-                    logger.info(f"  - Total position value: ${stiffness_stats['total_position_value']:.2f}")
-                    logger.info(f"  - Stiffness threshold for double positions: >{stiffness_stats['stiffness_threshold']}σ")
-                    logger.info(f"  - Leverage multiplier: {LEVERAGE_MULTIPLIER:.1f}x")
+                portfolio_results = run_momentum_portfolio_simulation(
+                    db_path="crypto_data.db",
+                    short_period=MOMENTUM_SHORT_PERIOD,
+                    long_period=MOMENTUM_LONG_PERIOD,
+                    slope_window=MOMENTUM_SLOPE_WINDOW,
+                    sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
+                    position_size=BASE_POSITION_SIZE,
+                    stiffness_threshold=STIFFNESS_THRESHOLD
+                )
                 
-                # Data is already in portfolio_results variable
+                if portfolio_results:
+                    logger.info("Portfolio Simulation completed successfully!")
+                    logger.info(f"Total PnL: {portfolio_results['summary']['total_pnl']:.2f}%")
+                    logger.info(f"Total Trades: {portfolio_results['summary']['total_trades']}")
+                    logger.info(f"Overall Win Rate: {portfolio_results['summary']['overall_win_rate']:.1f}%")
+                    
+                    # Display stiffness-based position sizing statistics
+                    if 'stiffness_stats' in portfolio_results['summary']:
+                        stiffness_stats = portfolio_results['summary']['stiffness_stats']
+                        logger.info("Stiffness-based Position Sizing Results (with Leverage):")
+                        logger.info(f"  - Normal positions: {stiffness_stats['normal_positions']}")
+                        logger.info(f"  - Double-size positions: {stiffness_stats['double_positions']}")
+                        logger.info(f"  - Average stiffness: {stiffness_stats['avg_stiffness']:.2f}σ")
+                        logger.info(f"  - Maximum stiffness: {stiffness_stats['max_stiffness']:.2f}σ")
+                        logger.info(f"  - Total position value: ${stiffness_stats['total_position_value']:.2f}")
+                        logger.info(f"  - Stiffness threshold for double positions: >{stiffness_stats['stiffness_threshold']}σ")
+                        logger.info(f"  - Leverage multiplier: {LEVERAGE_MULTIPLIER:.1f}x")
+                    
+                    # Data is already in portfolio_results variable
+                else:
+                    logger.error("Error during portfolio simulation")
+                    return
             else:
-                logger.error("Error during portfolio simulation")
-                return
+                logger.info("Step 3: Portfolio Simulation SKIPPED (using existing Excel data)")
+                # Use existing data from Excel files
+                portfolio_results = portfolio_data
         else:
-            logger.info("Step 3: Portfolio Simulation SKIPPED (using existing data)")
-            # Use existing data from Excel files
-            portfolio_results = portfolio_data
+            logger.info("Step 3: Portfolio Simulation SKIPPED (RUN_PORTFOLIO_SIMULATION = False)")
+            portfolio_results = None
         
         # Step 4: Trading Execution (if requested)
         if TRADING_ENABLED:
