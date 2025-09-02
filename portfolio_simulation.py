@@ -178,9 +178,9 @@ class MomentumPortfolioSimulator:
             elif position_open:
                 # Exit signal 1: EMA Slope < 0 (momentum turning negative)
                 if ema_slope < 0:
-                    signal = 'SELL'
-                    pnl = (current_price - entry_price) / entry_price * 100
-                    position_open = False
+                signal = 'SELL'
+                pnl = (current_price - entry_price) / entry_price * 100
+                position_open = False
                     self.logger.info(f"{token_name} SELL signal at {i}: Price=${current_price:.2f}, Slope={ema_slope:.6f}, PnL={pnl:.2f}%")
                 
                 # Exit signal 2: Volume EMA Slope < 0 AND Volume EMA Difference < 10% (volume declining and low)
@@ -193,9 +193,9 @@ class MomentumPortfolioSimulator:
                         volume_ema_percentage = (data.loc[i, volume_ema_short_col] / data.loc[i, volume_ema_long_col] - 1) * 100
                         
                         if volume_ema_percentage < 10.0:
-                            signal = 'SELL_VOLUME'
-                            pnl = (current_price - entry_price) / entry_price * 100
-                            position_open = False
+                    signal = 'SELL_VOLUME'
+                    pnl = (current_price - entry_price) / entry_price * 100
+                    position_open = False
                             self.logger.info(f"{token_name} SELL_VOLUME signal at {i}: Price=${current_price:.2f}, Vol Slope={volume_ema_slope:.6f}, Vol EMA%={volume_ema_percentage:.2f}%, PnL={pnl:.2f}%")
             
             signals.append({
@@ -349,7 +349,7 @@ class MomentumPortfolioSimulator:
         elif cols == 1:
             axes = axes.reshape(-1, 1)
         
-        axes = axes.flatten()
+            axes = axes.flatten()
         
         colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red', 'cyan', 'magenta']
         
@@ -377,7 +377,7 @@ class MomentumPortfolioSimulator:
                     self.logger.info(f"Converted numpy array to DataFrame for {token_name}")
                 else:
                     self.logger.warning(f"Unexpected signals type for {token_name}: {type(signals_df)}")
-                    continue
+                continue
             
             # Debug: Check the structure
             self.logger.info(f"Signals DataFrame for {token_name}: shape={signals_df.shape}, columns={list(signals_df.columns)}")
@@ -450,7 +450,7 @@ class MomentumPortfolioSimulator:
                 self.logger.info("Portfolio simulation plot saved but not displayed (DISPLAY_PLOTS = False)")
         except ImportError:
             # If main.py is not available, default to displaying plots
-            plt.show()
+        plt.show()
     
     def save_momentum_portfolio_results(self, simulation_results: Dict, save_path: str, 
                             short_period: int = 5, long_period: int = 20) -> None:

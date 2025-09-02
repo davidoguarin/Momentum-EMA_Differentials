@@ -8,7 +8,34 @@ import sys
 import logging
 import os
 import glob
-from datetime import datetime
+import pandas as pd
+from datetime import datetime, timedelta
+
+# =============================================================================
+# CONFIGURATION FLAGS - MODIFY THESE TO CONTROL BEHAVIOR
+# =============================================================================
+
+# Main execution flags
+EXTRACT_DATA = False  # Set to True to fetch new data from API
+RUN_EMA_ANALYSIS = True  # Set to True to run EMA analysis
+RUN_PORTFOLIO_SIMULATION = True  # Set to True to run portfolio simulation
+DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
+
+# Strategy parameters
+MOMENTUM_SHORT_PERIOD = 5  # Short EMA period for momentum strategy
+MOMENTUM_LONG_PERIOD = 15  # Long EMA period for momentum strategy
+MOMENTUM_SLOPE_WINDOW = 30  # Rolling window for slope distribution
+MOMENTUM_SIGMA_MULTIPLIER = 0.5  # Sigma multiplier for adaptive threshold
+
+# Trading parameters
+BASE_POSITION_SIZE = 50  # Base position size in USD
+STIFFNESS_THRESHOLD = 3  # Threshold for double position size
+TRADING_ENABLED = True # Set to True to execute real trades (not just simulation)
+LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max leverage)
+
+# =============================================================================
+# END CONFIGURATION FLAGS
+# =============================================================================
 
 # Import our custom modules
 from data_acquisition import fetch_specific_crypto_data
@@ -19,7 +46,7 @@ from config import config
 # Data handling functions
 def load_excel_data():
     """Load existing Excel data and check if updates are needed"""
-    import glob
+    logger = logging.getLogger(__name__)
     
     # Load portfolio data
     portfolio_files = glob.glob("results/momentum_portfolio_simulation_*.xlsx")
@@ -45,6 +72,8 @@ def load_excel_data():
 
 def needs_data_update(portfolio_data, trading_orders):
     """Check if data needs to be updated based on age and completeness"""
+    logger = logging.getLogger(__name__)
+    
     if portfolio_data is None:
         logger.info("🔄 No portfolio data - need to generate fresh data")
         return True
@@ -71,25 +100,6 @@ def needs_data_update(portfolio_data, trading_orders):
         return True
     
     return False
-
-# Configuration flags
-EXTRACT_DATA = False  # Set to True to fetch new data from API
-RUN_EMA_ANALYSIS = True  # Set to True to run EMA analysis
-RUN_PORTFOLIO_SIMULATION = True  # Set to True to run portfolio simulation
-DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
-
-# Strategy parameters
-MOMENTUM_SHORT_PERIOD = 5  # Short EMA period for momentum strategy
-MOMENTUM_LONG_PERIOD = 15  # Long EMA period for momentum strategy
-MOMENTUM_SLOPE_WINDOW = 30  # Rolling window for slope distribution
-MOMENTUM_SIGMA_MULTIPLIER = 0.5  # Sigma multiplier for adaptive threshold
-
-# Trading parameters
-BASE_POSITION_SIZE = 50  # Base position size in USD
-STIFFNESS_THRESHOLD = 3  # Threshold for double position size
-TRADING_ENABLED = True # Set to True to execute real trades (not just simulation)
-# Leverage configuration
-LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max leverage)
 
 def setup_logging():
     """Setup logging configuration"""
@@ -246,7 +256,7 @@ def main():
                 position_size=BASE_POSITION_SIZE,
                 stiffness_threshold=STIFFNESS_THRESHOLD
             )
-            
+                
             if portfolio_results:
                 logger.info("Portfolio Simulation completed successfully!")
                 logger.info(f"Total PnL: {portfolio_results['summary']['total_pnl']:.2f}%")
