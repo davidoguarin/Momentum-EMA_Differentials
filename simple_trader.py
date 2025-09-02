@@ -15,7 +15,7 @@ import os
 # Import our working modules
 from portfolio_simulation import MomentumPortfolioSimulator
 from database_manager import CryptoDatabase
-from config import config, get_wallet_config
+from config import config
 
 # Enable HD wallet features
 Account.enable_unaudited_hdwallet_features()
@@ -58,7 +58,7 @@ def update_config_from_main():
     global LEVERAGE_MULTIPLIER, WALLET_ADDRESS, SEED_PHRASE
     
     # First, try to load from environment variables
-    wallet_addr, seed_phrase = get_wallet_config()
+    wallet_addr, seed_phrase = config.get_wallet_config()
     if wallet_addr and seed_phrase:
         WALLET_ADDRESS = wallet_addr
         SEED_PHRASE = seed_phrase
@@ -1005,6 +1005,9 @@ def main():
         print("-" * 30)
     
     print("🎯 Trading session completed!")
+
+# Initialize configuration when module is imported
+update_config_from_main()
 
 if __name__ == "__main__":
     main() 
