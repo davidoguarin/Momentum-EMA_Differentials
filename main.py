@@ -28,7 +28,7 @@ MOMENTUM_SLOPE_WINDOW = 30  # Rolling window for slope distribution
 MOMENTUM_SIGMA_MULTIPLIER = 0.5  # Sigma multiplier for adaptive threshold
 
 # Trading parameters
-BASE_POSITION_SIZE = 70  # Base position size in USD
+BASE_POSITION_SIZE = 120  # Base position size in USD
 STIFFNESS_THRESHOLD = 3  # Threshold for double position size
 TRADING_ENABLED = True # Set to True to execute real trades (not just simulation)
 LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max leverage)
