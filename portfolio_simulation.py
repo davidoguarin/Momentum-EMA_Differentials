@@ -173,6 +173,8 @@ class MomentumPortfolioSimulator:
                 multiplier_info = f"Position Size: ${position_size_usd:.2f} ({position_multiplier}x USD, {leverage_info['leverage']:.1f}x leverage)"
                 
                 self.logger.info(f"{token_name} BUY signal at {i}: Price=${current_price:.2f}, Slope={ema_slope:.6f}, Threshold={slope_threshold:.6f}, Vol Slope={volume_ema_slope:.6f}, {stiffness_info}, {leverage_display}, {multiplier_info}")
+                
+            
             
             # Exit signals
             elif position_open:
@@ -182,6 +184,7 @@ class MomentumPortfolioSimulator:
                     pnl = (current_price - entry_price) / entry_price * 100
                     position_open = False
                     self.logger.info(f"{token_name} SELL signal at {i}: Price=${current_price:.2f}, Slope={ema_slope:.6f}, PnL={pnl:.2f}%")
+                    
                 
                 # Exit signal 2: Volume EMA Slope < 0 AND Volume EMA Difference < 10% (volume declining and low)
                 elif volume_ema_slope < 0:
@@ -197,8 +200,7 @@ class MomentumPortfolioSimulator:
                             pnl = (current_price - entry_price) / entry_price * 100
                             position_open = False
                             self.logger.info(f"{token_name} SELL_VOLUME signal at {i}: Price=${current_price:.2f}, Vol Slope={volume_ema_slope:.6f}, Vol EMA%={volume_ema_percentage:.2f}%, PnL={pnl:.2f}%")
-                        else:
-                            self.logger.info(f"{token_name} SELL_VOLUME signal at {i}: Price=${current_price:.2f}, Vol Slope={volume_ema_slope:.6f}, Vol EMA%={volume_ema_percentage:.2f}%, PnL={pnl:.2f}%")
+                            
             
             signals.append({
                 'date': i,

@@ -10,13 +10,14 @@ import os
 import glob
 import pandas as pd
 from datetime import datetime, timedelta
+import json
 
 # =============================================================================
 # CONFIGURATION FLAGS - MODIFY THESE TO CONTROL BEHAVIOR
 # =============================================================================
 
 # Main execution flags
-EXTRACT_DATA = True  # Set to True to fetch new data from API
+EXTRACT_DATA = False  # Set to True to fetch new data from API
 RUN_EMA_ANALYSIS = True  # Set to True to run EMA analysis
 RUN_PORTFOLIO_SIMULATION = True  # Set to True to run portfolio simulation
 DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
@@ -36,6 +37,170 @@ LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max lev
 # =============================================================================
 # END CONFIGURATION FLAGS
 # =============================================================================
+
+
+# =============================================================================
+# TRADING LOG SYSTEM
+# =============================================================================
+
+def setup_trading_log():
+    """Setup trading log Excel file for real trading activities"""
+    os.makedirs("results", exist_ok=True)
+    
+    # Create trading log Excel file
+    trading_log_file = "results/real_trading_log.xlsx"
+    
+    # Initialize trading log DataFrame if file doesn't exist
+    if not os.path.exists(trading_log_file):
+        trading_log_df = pd.DataFrame(columns=[
+            'timestamp', 'action', 'token', 'signal_type', 'price', 
+            'position_size_usd', 'leverage', 'stiffness', 'pnl_percent', 
+            'exit_reason', 'status', 'error_message'
+        ])
+        trading_log_df.to_excel(trading_log_file, index=False)
+    
+    return trading_log_file
+
+def log_position_opened(trading_log_file, token, signal_type, price, position_size, leverage, stiffness, entry_time=None):
+    """Log when a position is opened"""
+    if entry_time is None:
+        entry_time = datetime.now()
+    
+    # Read existing log
+    try:
+        existing_log = pd.read_excel(trading_log_file)
+    except:
+        existing_log = pd.DataFrame(columns=[
+            'timestamp', 'action', 'token', 'signal_type', 'price', 
+            'position_size_usd', 'leverage', 'stiffness', 'pnl_percent', 
+            'exit_reason', 'status', 'error_message'
+        ])
+    
+    # Add new entry
+    new_entry = pd.DataFrame([{
+        'timestamp': entry_time.isoformat(),
+        'action': 'POSITION_OPENED',
+        'token': token,
+        'signal_type': signal_type,
+        'price': price,
+        'position_size_usd': position_size,
+        'leverage': leverage,
+        'stiffness': stiffness,
+        'pnl_percent': None,
+        'exit_reason': None,
+        'status': 'SUCCESS',
+        'error_message': None
+    }])
+    
+    # Combine and save
+    updated_log = pd.concat([existing_log, new_entry], ignore_index=True)
+    updated_log.to_excel(trading_log_file, index=False)
+
+def log_position_closed(trading_log_file, token, exit_price, pnl_percent, exit_time=None, exit_reason="MANUAL"):
+    """Log when a position is closed"""
+    if exit_time is None:
+        exit_time = datetime.now()
+    
+    # Read existing log
+    try:
+        existing_log = pd.read_excel(trading_log_file)
+    except:
+        existing_log = pd.DataFrame(columns=[
+            'timestamp', 'action', 'token', 'signal_type', 'price', 
+            'position_size_usd', 'leverage', 'stiffness', 'pnl_percent', 
+            'exit_reason', 'status', 'error_message'
+        ])
+    
+    # Add new entry
+    new_entry = pd.DataFrame([{
+        'timestamp': exit_time.isoformat(),
+        'action': 'POSITION_CLOSED',
+        'token': token,
+        'signal_type': None,
+        'price': exit_price,
+        'position_size_usd': None,
+        'leverage': None,
+        'stiffness': None,
+        'pnl_percent': pnl_percent,
+        'exit_reason': exit_reason,
+        'status': 'SUCCESS',
+        'error_message': None
+    }])
+    
+    # Combine and save
+    updated_log = pd.concat([existing_log, new_entry], ignore_index=True)
+    updated_log.to_excel(trading_log_file, index=False)
+
+def log_position_failed(trading_log_file, token, signal_type, reason, attempt_time=None):
+    """Log when a position attempt fails"""
+    if attempt_time is None:
+        attempt_time = datetime.now()
+    
+    # Read existing log
+    try:
+        existing_log = pd.read_excel(trading_log_file)
+    except:
+        existing_log = pd.DataFrame(columns=[
+            'timestamp', 'action', 'token', 'signal_type', 'price', 
+            'position_size_usd', 'leverage', 'stiffness', 'pnl_percent', 
+            'exit_reason', 'status', 'error_message'
+        ])
+    
+    # Add new entry
+    new_entry = pd.DataFrame([{
+        'timestamp': attempt_time.isoformat(),
+        'action': 'POSITION_FAILED',
+        'token': token,
+        'signal_type': signal_type,
+        'price': None,
+        'position_size_usd': None,
+        'leverage': None,
+        'stiffness': None,
+        'pnl_percent': None,
+        'exit_reason': None,
+        'status': 'FAILED',
+        'error_message': reason
+    }])
+    
+    # Combine and save
+    updated_log = pd.concat([existing_log, new_entry], ignore_index=True)
+    updated_log.to_excel(trading_log_file, index=False)
+
+def log_trading_attempt(trading_log_file, token, signal_type, price, reason, attempt_time=None):
+    """Log when a trading attempt is made but doesn't meet criteria"""
+    if attempt_time is None:
+        attempt_time = datetime.now()
+    
+    # Read existing log
+    try:
+        existing_log = pd.read_excel(trading_log_file)
+    except:
+        existing_log = pd.DataFrame(columns=[
+            'timestamp', 'action', 'token', 'signal_type', 'price', 
+            'position_size_usd', 'leverage', 'stiffness', 'pnl_percent', 
+            'exit_reason', 'status', 'error_message'
+        ])
+    
+    # Add new entry
+    new_entry = pd.DataFrame([{
+        'timestamp': attempt_time.isoformat(),
+        'action': 'TRADING_ATTEMPT',
+        'token': token,
+        'signal_type': signal_type,
+        'price': price,
+        'position_size_usd': None,
+        'leverage': None,
+        'stiffness': None,
+        'pnl_percent': None,
+        'exit_reason': None,
+        'status': 'ATTEMPT',
+        'error_message': reason
+    }])
+    
+    # Combine and save
+    updated_log = pd.concat([existing_log, new_entry], ignore_index=True)
+    updated_log.to_excel(trading_log_file, index=False)
+
 
 # Import our custom modules
 from data_acquisition import fetch_specific_crypto_data
@@ -154,9 +319,15 @@ def find_latest_data_file():
 def main():
     """Main function to orchestrate the crypto EMA analysis"""
     logger = setup_logging()
+    trading_log_file = setup_trading_log()
     
     logger.info("Starting Crypto EMA Analysis with Momentum Strategy")
     logger.info(f"Analysis started at: {datetime.now()}")
+    
+    # Log trading session start
+    logger.info("=" * 80)
+    logger.info(f"TRADING SESSION STARTED: {datetime.now().isoformat()}")
+    logger.info("=" * 80)
     
     # Load existing data and check if updates are needed
     portfolio_data, trading_orders = load_excel_data()
@@ -257,36 +428,33 @@ def main():
                     position_size=BASE_POSITION_SIZE,
                     stiffness_threshold=STIFFNESS_THRESHOLD
                 )
+            
+            if portfolio_results:
+                logger.info("Portfolio Simulation completed successfully!")
+                logger.info(f"Total PnL: {portfolio_results['summary']['total_pnl']:.2f}%")
+                logger.info(f"Total Trades: {portfolio_results['summary']['total_trades']}")
+                logger.info(f"Overall Win Rate: {portfolio_results['summary']['overall_win_rate']:.1f}%")
                 
-                if portfolio_results:
-                    logger.info("Portfolio Simulation completed successfully!")
-                    logger.info(f"Total PnL: {portfolio_results['summary']['total_pnl']:.2f}%")
-                    logger.info(f"Total Trades: {portfolio_results['summary']['total_trades']}")
-                    logger.info(f"Overall Win Rate: {portfolio_results['summary']['overall_win_rate']:.1f}%")
-                    
-                    # Display stiffness-based position sizing statistics
-                    if 'stiffness_stats' in portfolio_results['summary']:
-                        stiffness_stats = portfolio_results['summary']['stiffness_stats']
-                        logger.info("Stiffness-based Position Sizing Results (with Leverage):")
-                        logger.info(f"  - Normal positions: {stiffness_stats['normal_positions']}")
-                        logger.info(f"  - Double-size positions: {stiffness_stats['double_positions']}")
-                        logger.info(f"  - Average stiffness: {stiffness_stats['avg_stiffness']:.2f}σ")
-                        logger.info(f"  - Maximum stiffness: {stiffness_stats['max_stiffness']:.2f}σ")
-                        logger.info(f"  - Total position value: ${stiffness_stats['total_position_value']:.2f}")
-                        logger.info(f"  - Stiffness threshold for double positions: >{stiffness_stats['stiffness_threshold']}σ")
-                        logger.info(f"  - Leverage multiplier: {LEVERAGE_MULTIPLIER:.1f}x")
+                # Display stiffness-based position sizing statistics
+                if 'stiffness_stats' in portfolio_results['summary']:
+                    stiffness_stats = portfolio_results['summary']['stiffness_stats']
+                    logger.info("Stiffness-based Position Sizing Results (with Leverage):")
+                    logger.info(f"  - Normal positions: {stiffness_stats['normal_positions']}")
+                    logger.info(f"  - Double-size positions: {stiffness_stats['double_positions']}")
+                    logger.info(f"  - Average stiffness: {stiffness_stats['avg_stiffness']:.2f}σ")
+                    logger.info(f"  - Maximum stiffness: {stiffness_stats['max_stiffness']:.2f}σ")
+                    logger.info(f"  - Total position value: ${stiffness_stats['total_position_value']:.2f}")
+                    logger.info(f"  - Stiffness threshold for double positions: >{stiffness_stats['stiffness_threshold']}σ")
+                    logger.info(f"  - Leverage multiplier: {LEVERAGE_MULTIPLIER:.1f}x")
                     
                     # Data is already in portfolio_results variable
-                else:
-                    logger.error("Error during portfolio simulation")
-                    return
             else:
-                logger.info("Step 3: Portfolio Simulation SKIPPED (using existing Excel data)")
-                # Use existing data from Excel files
-                portfolio_results = portfolio_data
+                logger.error("Error during portfolio simulation")
+                return
         else:
-            logger.info("Step 3: Portfolio Simulation SKIPPED (RUN_PORTFOLIO_SIMULATION = False)")
-            portfolio_results = None
+            logger.info("Step 3: Portfolio Simulation SKIPPED (using existing Excel data)")
+            # Use existing data from Excel files
+            portfolio_results = portfolio_data
         
         # Step 4: Trading Execution (if requested)
         if TRADING_ENABLED:
@@ -349,14 +517,43 @@ def main():
                     
                     for i, opportunity in enumerate(opportunities, 1):
                         logger.info(f"Trade {i}/{len(opportunities)}:")
+                        
+                        # Log trading attempt
+                        log_trading_attempt(
+                            trading_log_file, 
+                            opportunity.get('token', 'UNKNOWN'), 
+                            opportunity.get('signal', 'UNKNOWN'), 
+                            opportunity.get('price', 0), 
+                            f"Attempting trade {i}/{len(opportunities)}"
+                        )
+                        
                         success = execute_trade(exchange, opportunity, TRADING_ENABLED)
                         
                         if success:
                             logger.info(f"✅ Trade {i} completed successfully")
                             successful_trades += 1
+                            
+                            # Log successful position opened
+                            log_position_opened(
+                                trading_log_file,
+                                opportunity.get('token', 'UNKNOWN'),
+                                opportunity.get('signal', 'UNKNOWN'),
+                                opportunity.get('price', 0),
+                                opportunity.get('position_size', 0),
+                                opportunity.get('leverage', 1),
+                                opportunity.get('stiffness', 0)
+                            )
                         else:
                             logger.error(f"❌ Trade {i} failed")
                             failed_trades += 1
+                            
+                            # Log failed position
+                            log_position_failed(
+                                trading_log_file,
+                                opportunity.get('token', 'UNKNOWN'),
+                                opportunity.get('signal', 'UNKNOWN'),
+                                f"Trade execution failed for trade {i}"
+                            )
                         
                         logger.info("-" * 30)
                     
@@ -412,10 +609,19 @@ def main():
         logger.info("Step 6: Analysis completed successfully!")
         logger.info(f"Analysis finished at: {datetime.now()}")
         
+        # Log trading session end
+        trading_logger.info("=" * 80)
+        trading_logger.info(f"TRADING SESSION ENDED: {datetime.now().isoformat()}")
+        trading_logger.info("=" * 80)
+        
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+        
+        # Log trading session error
+        trading_logger.error(f"TRADING SESSION ERROR: {str(e)}")
+        trading_logger.error("=" * 80)
 
 if __name__ == "__main__":
     main() 
