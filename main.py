@@ -26,12 +26,12 @@ DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
 MOMENTUM_SHORT_PERIOD = 5  # Short EMA period for momentum strategy
 MOMENTUM_LONG_PERIOD = 15  # Long EMA period for momentum strategy
 MOMENTUM_SLOPE_WINDOW = 30  # Rolling window for slope distribution
-MOMENTUM_SIGMA_MULTIPLIER = 0.5  # Sigma multiplier for adaptive threshold
+MOMENTUM_SIGMA_MULTIPLIER = 0.01  # Sigma multiplier for adaptive threshold
 
 # Trading parameters
 BASE_POSITION_SIZE = 120  # Base position size in USD
-STIFFNESS_THRESHOLD = 3  # Threshold for double position size
-TRADING_ENABLED = True # Set to True to execute real trades (not just simulation)
+STIFFNESS_THRESHOLD = 0.5 # Threshold for double position size
+TRADING_ENABLED = False # Set to True to execute real trades (not just simulation)
 LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max leverage)
 
 # =============================================================================
@@ -404,9 +404,13 @@ def main():
         
         # Step 3: Portfolio Simulation (Momentum Strategy Only)
         if RUN_PORTFOLIO_SIMULATION:
+            logger.info("Step 3: Starting Momentum Portfolio Simulation...")
+            
             if EXTRACT_DATA:
-                logger.info("Step 3: Starting Momentum Portfolio Simulation (with fresh data)...")
-                
+                logger.info("Using fresh data from database...")
+            else:
+                logger.info("Using existing data from database...")
+            
                 logger.info("Using MOMENTUM Portfolio Strategy:")
                 logger.info("Trading Rules:")
                 logger.info(f"  - BUY: EMA Slope > Adaptive Threshold (mean + {MOMENTUM_SIGMA_MULTIPLIER}σ) AND Volume EMA Slope > 0")
@@ -424,9 +428,9 @@ def main():
                     short_period=MOMENTUM_SHORT_PERIOD,
                     long_period=MOMENTUM_LONG_PERIOD,
                     slope_window=MOMENTUM_SLOPE_WINDOW,
-                    sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
-                    position_size=BASE_POSITION_SIZE,
-                    stiffness_threshold=STIFFNESS_THRESHOLD
+                sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
+                position_size=BASE_POSITION_SIZE,
+                stiffness_threshold=STIFFNESS_THRESHOLD
                 )
             
             if portfolio_results:
@@ -610,9 +614,9 @@ def main():
         logger.info(f"Analysis finished at: {datetime.now()}")
         
         # Log trading session end
-        trading_logger.info("=" * 80)
-        trading_logger.info(f"TRADING SESSION ENDED: {datetime.now().isoformat()}")
-        trading_logger.info("=" * 80)
+        logger.info("=" * 80)
+        logger.info(f"TRADING SESSION ENDED: {datetime.now().isoformat()}")
+        logger.info("=" * 80)
         
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
@@ -620,8 +624,8 @@ def main():
         logger.error(traceback.format_exc())
         
         # Log trading session error
-        trading_logger.error(f"TRADING SESSION ERROR: {str(e)}")
-        trading_logger.error("=" * 80)
+        logger.error(f"TRADING SESSION ERROR: {str(e)}")
+        logger.error("=" * 80)
 
 if __name__ == "__main__":
     main() 

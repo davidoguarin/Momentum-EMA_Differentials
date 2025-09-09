@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class MomentumPortfolioSimulator:
     def __init__(self, initial_capital: float = 10000, position_size: float = 100, 
-                 slope_window: int = 30, sigma_multiplier: float = 2.0, stiffness_threshold: float = 1.5):
+                 slope_window: int = 30, sigma_multiplier: float = 2.0, stiffness_threshold: float = None):
         """
         Initialize momentum portfolio simulator
         
@@ -27,7 +27,16 @@ class MomentumPortfolioSimulator:
         self.position_size = position_size
         self.slope_window = slope_window
         self.sigma_multiplier = sigma_multiplier
-        self.stiffness_threshold = stiffness_threshold
+        # Load stiffness_threshold from main.py if not provided
+        if stiffness_threshold is None:
+            try:
+                import main
+                self.stiffness_threshold = main.STIFFNESS_THRESHOLD
+            except ImportError:
+                from config import config
+                self.stiffness_threshold = config.STIFFNESS_THRESHOLD
+        else:
+            self.stiffness_threshold = stiffness_threshold
         self.logger = logging.getLogger(__name__)
         
     def calculate_position_stiffness(self, ema_slope: float, slope_threshold: float, 
@@ -304,7 +313,7 @@ class MomentumPortfolioSimulator:
                 'total_position_value': sum([t.get('position_size_usd', 100) for t in all_trades if t.get('signal') == 'BUY']),
                 'avg_stiffness': np.mean([t.get('stiffness', 0.0) for t in all_trades if t.get('signal') == 'BUY']),
                 'max_stiffness': max([t.get('stiffness', 0.0) for t in all_trades if t.get('signal') == 'BUY'], default=0.0),
-                'stiffness_threshold': 1.5
+                'stiffness_threshold': self.stiffness_threshold
             }
         }
         
@@ -583,7 +592,7 @@ class MomentumPortfolioSimulator:
 def run_momentum_portfolio_simulation(db_path: str, save_dir: str = 'results', 
                                    short_period: int = 5, long_period: int = 20,
                                    slope_window: int = 30, sigma_multiplier: float = 2.0,
-                                   position_size: float = 100, stiffness_threshold: float = 1.5) -> Dict:
+                                   position_size: float = 100, stiffness_threshold: float = None) -> Dict:
     """
     Run momentum portfolio simulation with adaptive slope strategy
     Data is filtered to only the last 3 months for simulation
@@ -701,6 +710,17 @@ def run_momentum_portfolio_simulation(db_path: str, save_dir: str = 'results',
                 return None
         
         logger.info("All required EMA columns validated successfully")
+        
+        # Load stiffness_threshold from main.py if not provided
+        if stiffness_threshold is None:
+            try:
+                import main
+                stiffness_threshold = main.STIFFNESS_THRESHOLD
+                logger.info(f"Loaded stiffness_threshold from main.py: {stiffness_threshold}")
+            except ImportError:
+                from config import config
+                stiffness_threshold = config.STIFFNESS_THRESHOLD
+                logger.info(f"Loaded stiffness_threshold from config: {stiffness_threshold}")
         
         # Initialize simulator
         simulator = MomentumPortfolioSimulator(

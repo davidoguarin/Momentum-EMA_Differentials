@@ -337,11 +337,15 @@ class EMAAnalyzer:
         
         self.logger.info(f"Creating combined plot with data from {filtered_data.index.min()} to {filtered_data.index.max()}")
         
-        # Create subplots for 8 tokens (2 rows, 4 columns for better fit)
-        fig, axes = plt.subplots(2, 4, figsize=(24, 12))
+        # Create subplots for all tokens (3 rows, 4 columns for 12 tokens)
+        num_tokens = len(token_names)
+        cols = 4
+        rows = (num_tokens + cols - 1) // cols
+        fig, axes = plt.subplots(rows, cols, figsize=(24, 6 * rows))
         axes = axes.flatten()
         
-        colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red', 'cyan', 'magenta']
+        colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red', 'cyan', 'magenta', 
+                 'lime', 'navy', 'olive', 'teal']
         
         for i, token_name in enumerate(token_names):
             if i >= len(axes):
@@ -441,11 +445,15 @@ class EMAAnalyzer:
         # Get last 30 days of data
         last_30_days = data.tail(30)
         
-        # Create subplots for 8 tokens (2 rows, 4 columns)
-        fig, axes = plt.subplots(2, 4, figsize=(24, 12))
+        # Create subplots for all tokens (3 rows, 4 columns for 12 tokens)
+        num_tokens = len(token_names)
+        cols = 4
+        rows = (num_tokens + cols - 1) // cols
+        fig, axes = plt.subplots(rows, cols, figsize=(24, 6 * rows))
         axes = axes.flatten()
         
-        colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red', 'cyan', 'magenta']
+        colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red', 'cyan', 'magenta', 
+                 'lime', 'navy', 'olive', 'teal']
         
         for i, token_name in enumerate(token_names):
             if i >= len(axes):
