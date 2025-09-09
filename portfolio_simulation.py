@@ -653,21 +653,38 @@ def run_momentum_portfolio_simulation(db_path: str, save_dir: str = 'results',
             return None
         
         # Filter data to only the last 3 months (90 days)
-        three_months_ago = ema_data.index.max() - pd.Timedelta(days=90)
+        # Use the maximum date from the data to get the most recent data
+        max_date = ema_data.index.max()
+        three_months_ago = max_date - pd.Timedelta(days=90)
         filtered_data = ema_data[ema_data.index >= three_months_ago]
+        
+        # Ensure all tokens have data in the filtered range
+        # Remove tokens that don't have enough data points
+        min_data_points = 30  # At least 30 data points for meaningful analysis
+        valid_tokens = []
+        for col in [col for col in filtered_data.columns if col.endswith('_price')]:
+            token_name = col.replace('_price', '')
+            token_data = filtered_data[col].dropna()
+            if len(token_data) >= min_data_points:
+                valid_tokens.append(token_name)
+            else:
+                logger.warning(f"Token {token_name} has only {len(token_data)} data points, skipping")
+        
+        if not valid_tokens:
+            logger.error("No tokens have sufficient data for analysis")
+            return None
         
         logger.info(f"Filtered to last 3 months: {len(filtered_data)} data points")
         logger.info(f"Filtered data range: {filtered_data.index.min()} to {filtered_data.index.max()}")
         
-        # Get token names from price columns
-        price_columns = [col for col in filtered_data.columns if col.endswith('_price')]
-        token_names = [col.replace('_price', '') for col in price_columns]
+        # Use only valid tokens that have sufficient data
+        token_names = valid_tokens
         
         if not token_names:
-            logger.error("No token price columns found in filtered data")
+            logger.error("No valid tokens found for analysis")
             return None
         
-        logger.info(f"Found {len(token_names)} tokens: {', '.join(token_names)}")
+        logger.info(f"Found {len(token_names)} valid tokens: {', '.join(token_names)}")
         
         # Validate that required EMA columns exist for each token
         for token_name in token_names:
