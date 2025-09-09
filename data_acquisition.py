@@ -1293,7 +1293,11 @@ def fetch_specific_crypto_data(api_key: Optional[str] = None, db_path: str = "cr
         'ripple': 'XRP',
         'sui': 'SUI',
         'tron': 'TRX',
-        'arbitrum': 'ARB'
+        'arbitrum': 'ARB',
+        'aave': 'AAVE',
+        'cardano': 'ADA',
+        'ethena': 'ENA',
+        'dogecoin': 'DOGE'
     }
     
     # Initialize data storage
@@ -1523,7 +1527,11 @@ def update_current_hour_data(api_key: Optional[str] = None, db_path: str = "cryp
         'ripple': 'XRP',
         'sui': 'SUI',
         'tron': 'TRX',
-        'arbitrum': 'ARB'
+        'arbitrum': 'ARB',
+        'aave': 'AAVE',
+        'cardano': 'ADA',
+        'ethena': 'ENA',
+        'dogecoin': 'DOGE'
     }
     
     updated_tokens = []
