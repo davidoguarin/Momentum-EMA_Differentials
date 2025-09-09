@@ -17,10 +17,10 @@ A sophisticated cryptocurrency trading system that uses Exponential Moving Avera
 
 ## 🎯 System Overview
 
-This system combines **EMA Analysis**, **Momentum Portfolio Simulation**, and **Real Trading Execution** to create a comprehensive crypto trading solution. It analyzes 8 major cryptocurrencies (ARB, BTC, ETH, NEAR, SOL, SUI, TRX, XRP) and executes trades based on sophisticated momentum signals.
+This system combines **EMA Analysis**, **Momentum Portfolio Simulation**, and **Real Trading Execution** to create a comprehensive crypto trading solution. It analyzes 12 major cryptocurrencies (ARB, BTC, ETH, NEAR, SOL, SUI, TRX, XRP, AAVE, ADA, ENA, DOGE) and executes trades based on sophisticated momentum signals.
 
 ### Key Features
-- **Multi-token Analysis**: Simultaneously analyzes 8 cryptocurrencies
+- **Multi-token Analysis**: Simultaneously analyzes 12 cryptocurrencies
 - **Momentum-based Signals**: Uses EMA slope and volume analysis
 - **Stiffness-based Position Sizing**: Adjusts position size based on signal strength
 - **Leverage Management**: Dynamic leverage allocation per token
@@ -227,8 +227,6 @@ python portfolio_simulation.py
    - Go to `Settings` → `Secrets and variables` → `Actions`
    - Add the following secrets:
      - `COINGECKO_API_KEY`
-     - `API_KEY` 
-     - `API_SECRET`
      - `WALLET_ADDRESS`
      - `SEED_PHRASE`
 3. **Enable GitHub Actions** - The workflow will run automatically
@@ -254,8 +252,6 @@ python portfolio_simulation.py
 | Variable | Description | Required | GitHub Secret | Example |
 |----------|-------------|----------|---------------|---------|
 | `COINGECKO_API_KEY` | CoinGecko API key for data | Yes | `COINGECKO_API_KEY` | `CG-abc123...` |
-| `API_KEY` | Hyperliquid trading API key | Yes | `API_KEY` | `hl_abc123...` |
-| `API_SECRET` | Hyperliquid trading secret | Yes | `API_SECRET` | `secret123...` |
 | `WALLET_ADDRESS` | Your wallet address | Yes | `WALLET_ADDRESS` | `0x1234...` |
 | `SEED_PHRASE` | Your wallet seed phrase | Yes | `SEED_PHRASE` | `word1 word2...` |
 | `BASE_POSITION_SIZE` | Base position size in USD | No | `BASE_POSITION_SIZE` | `50` |
