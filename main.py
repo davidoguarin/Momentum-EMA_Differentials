@@ -396,8 +396,7 @@ def main():
         try:
             if needs_update and portfolio_results:
                 # Save new portfolio results
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                portfolio_file = f"results/momentum_portfolio_simulation_{timestamp}.xlsx"
+                portfolio_file = f"results/momentum_portfolio_simulation_latest.xlsx"
                 
                 with pd.ExcelWriter(portfolio_file, engine='openpyxl') as writer:
                     for sheet_name, df in portfolio_results.items():
