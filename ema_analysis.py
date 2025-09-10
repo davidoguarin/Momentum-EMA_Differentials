@@ -509,10 +509,10 @@ class EMAAnalyzer:
                 # Calculate trend direction (last 5 days vs previous 5 days)
                 if len(price_percentage) >= 10:
                     recent_trend = price_percentage.iloc[-5:].mean() - price_percentage.iloc[-10:-5].mean()
-                    trend_arrow = "↗️" if recent_trend > 0 else "↘️" if recent_trend < 0 else "→"
+                    trend_arrow = "UP" if recent_trend > 0 else "DOWN" if recent_trend < 0 else "FLAT"
                     trend_text = "UP" if recent_trend > 0 else "DOWN" if recent_trend < 0 else "SIDE"
                 else:
-                    trend_arrow = "→"
+                    trend_arrow = "FLAT"
                     trend_text = "SIDE"
                 
                 # Add current values annotation with trend

@@ -17,7 +17,7 @@ import json
 # =============================================================================
 
 # Main execution flags
-EXTRACT_DATA = True  # Set to True to fetch new data from API
+EXTRACT_DATA = False  # Set to True to fetch new data from API
 RUN_EMA_ANALYSIS = True  # Set to True to run EMA analysis
 RUN_PORTFOLIO_SIMULATION = True  # Set to True to run portfolio simulation
 DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
@@ -30,8 +30,8 @@ MOMENTUM_SIGMA_MULTIPLIER = 0.01  # Sigma multiplier for adaptive threshold
 
 # Trading parameters
 BASE_POSITION_SIZE = 120  # Base position size in USD
-STIFFNESS_THRESHOLD = 1 # Threshold for double position size
-TRADING_ENABLED = True # Set to True to execute real trades (not just simulation)
+STIFFNESS_THRESHOLD = 0.5 # Threshold for double position size
+TRADING_ENABLED = False # Set to True to execute real trades (not just simulation)
 LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max leverage)
 
 # =============================================================================
@@ -423,15 +423,21 @@ def main():
                 logger.info(f"  - Leverage stays constant, only USD amount increases")
                 logger.info(f"  - Stiffness = (EMA Slope - Threshold) / Standard Deviation")
                 
-                portfolio_results = run_momentum_portfolio_simulation(
-                    db_path="crypto_data.db",
-                    short_period=MOMENTUM_SHORT_PERIOD,
-                    long_period=MOMENTUM_LONG_PERIOD,
-                    slope_window=MOMENTUM_SLOPE_WINDOW,
-                sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
-                position_size=BASE_POSITION_SIZE,
-                stiffness_threshold=STIFFNESS_THRESHOLD
-                )
+                try:
+                    portfolio_results = run_momentum_portfolio_simulation(
+                        db_path="crypto_data.db",
+                        short_period=MOMENTUM_SHORT_PERIOD,
+                        long_period=MOMENTUM_LONG_PERIOD,
+                        slope_window=MOMENTUM_SLOPE_WINDOW,
+                        sigma_multiplier=MOMENTUM_SIGMA_MULTIPLIER,
+                        position_size=BASE_POSITION_SIZE,
+                        stiffness_threshold=STIFFNESS_THRESHOLD
+                    )
+                except Exception as e:
+                    logger.error(f"Error during portfolio simulation: {str(e)}")
+                    import traceback
+                    logger.error(f"Full traceback: {traceback.format_exc()}")
+                    portfolio_results = None
             
             if portfolio_results:
                 logger.info("Portfolio Simulation completed successfully!")

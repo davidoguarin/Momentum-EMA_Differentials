@@ -90,6 +90,7 @@ class MomentumPortfolioSimulator:
             return pd.DataFrame()
         
         # Calculate EMA difference (short - long)
+        data = data.copy()  # Create a copy to avoid SettingWithCopyWarning
         data[f'{token_name}_ema_difference'] = data[ema_short_col] - data[ema_long_col]
         
         # Calculate slope of EMA difference (first derivative)
