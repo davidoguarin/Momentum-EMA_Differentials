@@ -363,7 +363,7 @@ class MomentumPortfolioSimulator:
         elif cols == 1:
             axes = axes.reshape(-1, 1)
         
-        axes = axes.flatten()
+            axes = axes.flatten()
         
         colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red', 'cyan', 'magenta']
         
