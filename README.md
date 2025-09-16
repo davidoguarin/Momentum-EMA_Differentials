@@ -1,8 +1,10 @@
-# 🚀 Crypto Momentum Trading System
+# Crypto Momentum Trading System
 
-A sophisticated cryptocurrency trading system that uses Exponential Moving Average (EMA) crossovers and momentum signals to identify trading opportunities across multiple tokens.
+## Strategy Overview
 
-## 📋 Table of Contents
+This  cryptocurrency trading system implements a multi-layered momentum strategy that captures the acceleration of price trends through the analysis of EMA differentials rather than simple crossovers. The core methodology revolves around calculating the momentum of the difference between two Exponential Moving Averages (5-day and 15-day) and using volume evolution patterns as a filter mechanism. The strategy generates signals when the EMA differential momentum exceeds an adaptive threshold calculated from statistical analysis and recent volatility, while simultaneously confirming that this momentum is supported by increasing trading volume. This approach provides early entry signals before traditional crossover strategies and includes dynamic position sizing based on signal strength (stiffness), with comprehensive risk management through volume-based exit conditions and token-specific leverage limits.
+
+## Table of Contents
 
 - [System Overview](#system-overview)
 - [Trading Strategy](#trading-strategy)
@@ -15,7 +17,7 @@ A sophisticated cryptocurrency trading system that uses Exponential Moving Avera
 - [Results & Analysis](#results--analysis)
 - [Troubleshooting](#troubleshooting)
 
-## 🎯 System Overview
+## System Overview
 
 This system combines **EMA Analysis**, **Momentum Portfolio Simulation**, and **Real Trading Execution** to create a comprehensive crypto trading solution. It analyzes 12 major cryptocurrencies (ARB, BTC, ETH, NEAR, SOL, SUI, TRX, XRP, AAVE, ADA, ENA, DOGE) and executes trades based on sophisticated momentum signals.
 
@@ -27,11 +29,11 @@ This system combines **EMA Analysis**, **Momentum Portfolio Simulation**, and **
 - **Real-time Trading**: Live execution via Hyperliquid API
 - **Comprehensive Logging**: Detailed trade tracking and performance analysis
 
-## 📊 Trading Strategy
+## Trading Strategy
 
 ### Signal Generation Criteria
 
-#### 🟢 BUY Signals (Open Long Position)
+#### BUY Signals (Open Long Position)
 **Primary Conditions:**
 1. **EMA Slope > Adaptive Threshold**
    - Short EMA (5-day) slope > Long EMA (15-day) slope
@@ -47,7 +49,7 @@ BUY Signal = (EMA_5d_slope > Threshold) AND (Volume_EMA_slope > 0)
 Threshold = Rolling_30d_Mean + (0.5 × Rolling_30d_StdDev)
 ```
 
-#### 🔴 SELL Signals (Close Long Position)
+#### SELL Signals (Close Long Position)
 **Primary Conditions:**
 1. **Momentum Reversal**
    - EMA slope turns negative (< 0)
@@ -109,7 +111,7 @@ Leverage Multiplier: 1.0
 Final Position: $50 × 20x = $1,000 USD
 ```
 
-## 🎛️ Position Management
+## Position Management
 
 ### Entry Conditions
 1. **Signal Confirmation**: BUY signal generated
@@ -127,7 +129,7 @@ Final Position: $50 × 20x = $1,000 USD
 - **Trade History**: Complete execution log
 - **Performance Metrics**: Win rate, total returns
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 - Python 3.8+
@@ -152,8 +154,6 @@ cp env_template.txt .env
 ```bash
 # Required
 COINGECKO_API_KEY=your_coingecko_api_key
-API_KEY=your_hyperliquid_api_key
-API_SECRET=your_hyperliquid_secret
 WALLET_ADDRESS=your_wallet_address
 SEED_PHRASE=your_seed_phrase
 
@@ -164,7 +164,7 @@ LEVERAGE_MULTIPLIER=1.0
 HYPERLIQUID_TESTNET=true  # Use testnet for development
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Main Configuration (`main.py`)
 ```python
@@ -198,7 +198,7 @@ ORDER_TIMEOUT = 30               # Order timeout (seconds)
 SLIPPAGE_TOLERANCE = 0.02        # 2% slippage tolerance
 ```
 
-## 🚀 Usage
+## Usage
 
 ### Quick Start
 ```bash
@@ -212,12 +212,12 @@ python ema_analysis.py
 python portfolio_simulation.py
 ```
 
-## 🚀 GitHub Deployment
+## GitHub Deployment
 
 ### Security Best Practices
-✅ **Repository Secrets**: All API keys and credentials are stored in GitHub repository secrets  
-✅ **Git Ignore**: Sensitive files are automatically excluded from commits  
-✅ **GitHub Actions**: Automated deployment with secure credential management  
+**Repository Secrets**: All API keys and credentials are stored in GitHub repository secrets  
+**Git Ignore**: Sensitive files are automatically excluded from commits  
+**GitHub Actions**: Automated deployment with secure credential management  
 
 ### Deployment Options
 
@@ -279,7 +279,7 @@ TRADING_ENABLED = False
 python main.py
 ```
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### Core Modules
 
@@ -315,7 +315,7 @@ Data Sources → Data Acquisition → EMA Analysis → Portfolio Simulation → 
   Price/Volume → Clean Data → Signal Generation → Opportunity ID → Order Execution
 ```
 
-## 🔌 API Integration
+## API Integration
 
 ### Hyperliquid Integration
 - **Futures Trading**: Long positions only
@@ -329,7 +329,7 @@ Data Sources → Data Acquisition → EMA Analysis → Portfolio Simulation → 
 - **Account**: Balance, positions, margin
 - **Risk**: Position limits, margin requirements
 
-## 📈 Results & Analysis
+## Results & Analysis
 
 ### Output Files
 - **Excel Reports**: `results/momentum_portfolio_simulation_latest.xlsx`
@@ -348,7 +348,7 @@ Data Sources → Data Acquisition → EMA Analysis → Portfolio Simulation → 
 3. **Signals**: Per-token signal analysis
 4. **Trades**: Per-token trade execution
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -388,7 +388,7 @@ logging.basicConfig(level=logging.DEBUG)
 - **Memory Management**: Monitor memory usage during simulation
 - **API Rate Limiting**: Respect exchange rate limits
 
-## 📚 Advanced Features
+## Advanced Features
 
 ### Custom Strategies
 - **Signal Modification**: Adjust BUY/SELL criteria
@@ -405,7 +405,7 @@ logging.basicConfig(level=logging.DEBUG)
 - **Correlation Analysis**: Diversification optimization
 - **Rebalancing**: Dynamic portfolio adjustment
 
-## 🤝 Contributing
+## Contributing
 
 ### Development Guidelines
 1. **Code Style**: Follow PEP 8 standards
@@ -422,11 +422,11 @@ python -m pytest tests/
 python -m pytest --cov=.
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 **Risk Warning**: Cryptocurrency trading involves substantial risk of loss. This system is for educational and research purposes. Always:
 - Test thoroughly on testnet before live trading
@@ -438,7 +438,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-## 🎯 Quick Reference
+## Quick Reference
 
 ### Trading Criteria Summary
 - **BUY**: EMA slope > threshold + volume confirmation
@@ -462,5 +462,4 @@ python portfolio_simulation.py    # Simulation only
 ---
 
 **Last Updated**: August 29, 2025  
-**Version**: 2.0.0  
-**Status**: Production Ready ✅ 
+**Status**: Production Ready 
