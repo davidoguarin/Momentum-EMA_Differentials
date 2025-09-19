@@ -777,15 +777,36 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                 return True
                 
         elif signal_type == "SELL":
-            # Closing position - check exchange for actual open positions
+            # Closing position - get actual position size from exchange
             print(f"🔴 Executing SELL order for {token}")
             print(f"   Market: {market}")
             print(f"   Exit Price: ${price:.4f}")
             
-            # For now, we'll use a default position size since we can't read from files
-            # In a real implementation, you would query the exchange for actual open positions
-            units = position_size / price  # Default calculation
-            entry_price = price * 0.95  # Assume 5% profit for logging purposes
+            # Get actual position size from exchange
+            try:
+                # Import HyperliquidTrader to get current positions
+                from hyperliquid_trader import HyperliquidTrader
+                
+                # Initialize trader (you'll need to pass wallet address)
+                trader = HyperliquidTrader(wallet_address="0x0eb9aae5f84465dab5f0899afdc07cbcb6f7cf27")
+                current_positions = trader.get_current_positions()
+                
+                # Find the position for this token
+                token_symbol = token.replace('-USD', '')  # Convert BTC-USD to BTC
+                if token_symbol in current_positions:
+                    actual_position = current_positions[token_symbol]
+                    units = abs(actual_position['size'])  # Get actual units
+                    entry_price = actual_position['entry_price']
+                    print(f"   ✅ Found actual position: {units:.6f} units @ ${entry_price:.4f}")
+                else:
+                    print(f"   ⚠️ No open position found for {token_symbol}, using default calculation")
+                    units = position_size / price  # Fallback to default
+                    entry_price = price * 0.95  # Assume 5% profit for logging purposes
+                    
+            except Exception as e:
+                print(f"   ⚠️ Error getting position size: {str(e)}, using default calculation")
+                units = position_size / price  # Fallback to default
+                entry_price = price * 0.95  # Assume 5% profit for logging purposes
             
             # Calculate PnL
             pnl_usd, pnl_percent = calculate_pnl(entry_price, price, units, position_size)
@@ -842,8 +863,8 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     print(f"❌ Real order failed: {e}")
                     return False
             else:
-                # Simulation mode
-                # Simulation mode - silent execution
+                # Simulation mode - use actual position size if available
+                print(f"   📊 Simulation mode: Closing position")
                 
                 # Save simulated order to Excel
                 order_data = {
@@ -853,9 +874,9 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     'Order_Type': 'SELL',
                     'Price': price,
                     'Units': units,
-                    'Position_Size_USD': position_size,
-                    'Stiffness': stiffness,
-                    'Position_Multiplier': position_multiplier,
+                    'Position_Size_USD': units * price,  # Use actual position value
+                    'Stiffness': 0.0,  # Not relevant for SELL
+                    'Position_Multiplier': 1.0,  # Not relevant for SELL
                     'Market': market,
                     'Status': 'CLOSED',
                     'Entry_Date': datetime.now(),  # Current time as placeholder
