@@ -808,10 +808,12 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                 units = position_size / price  # Fallback to default
                 entry_price = price * 0.95  # Assume 5% profit for logging purposes
             
-            # Calculate PnL
-            pnl_usd, pnl_percent = calculate_pnl(entry_price, price, units, position_size)
-            print(f"   Entry Price: ${entry_price:.4f} (estimated)")
-            print(f"   Units: {units:.4f}")
+            # Calculate actual position value and PnL
+            actual_position_value = units * price  # Current value of position
+            pnl_usd, pnl_percent = calculate_pnl(entry_price, price, units, actual_position_value)
+            print(f"   Entry Price: ${entry_price:.4f}")
+            print(f"   Units: {units:.6f}")
+            print(f"   Position Value: ${actual_position_value:.2f}")
             print(f"   PnL: ${pnl_usd:.2f} ({pnl_percent:.2f}%)")
             
             if trading_enabled:
@@ -839,7 +841,7 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                         'Order_Type': 'SELL',
                         'Price': price,
                         'Units': units,
-                        'Position_Size_USD': position_size,
+                        'Position_Size_USD': actual_position_value,
                         'Stiffness': stiffness,
                         'Position_Multiplier': position_multiplier,
                         'Market': market,
