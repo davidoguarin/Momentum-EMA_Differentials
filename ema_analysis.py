@@ -515,8 +515,11 @@ class EMAAnalyzer:
                     trend_arrow = "FLAT"
                     trend_text = "SIDE"
                 
-                # Add current values annotation with trend
-                annotation_text = f'Price EMA%: {current_price_percentage:+.2f}%\nTrend: {trend_text} {trend_arrow}'
+                # Get last data point timestamp
+                last_timestamp = last_30_days.index[-1]
+                
+                # Add current values annotation with trend and timestamp
+                annotation_text = f'Last: {last_timestamp.strftime("%Y-%m-%d %H:%M")}\nPrice EMA%: {current_price_percentage:+.2f}%\nTrend: {trend_text} {trend_arrow}'
                 if current_volume_percentage is not None:
                     annotation_text += f'\nVol EMA%: {current_volume_percentage:+.2f}%'
                 

@@ -182,7 +182,7 @@ class MomentumPortfolioSimulator:
                 leverage_display = f"Leverage: {actual_leverage:.1f}x (Max: {leverage_info['max_leverage']}x)"
                 multiplier_info = f"Position Size: ${position_size_usd:.2f} ({position_multiplier}x USD, {leverage_info['leverage']:.1f}x leverage)"
                 
-                self.logger.info(f"{token_name} BUY signal at {i}: Price=${current_price:.2f}, Slope={ema_slope:.6f}, Threshold={slope_threshold:.6f}, Vol Slope={volume_ema_slope:.6f}, {stiffness_info}, {leverage_display}, {multiplier_info}")
+                # BUY signal detected
                 
             
             
@@ -193,7 +193,7 @@ class MomentumPortfolioSimulator:
                     signal = 'SELL'
                     pnl = (current_price - entry_price) / entry_price * 100
                     position_open = False
-                    self.logger.info(f"{token_name} SELL signal at {i}: Price=${current_price:.2f}, Slope={ema_slope:.6f}, PnL={pnl:.2f}%")
+                    # SELL signal detected
                     
                 
                 # Exit signal 2: Volume EMA Slope < 0 AND Volume EMA Difference < 10% (volume declining and low)
@@ -209,7 +209,7 @@ class MomentumPortfolioSimulator:
                             signal = 'SELL_VOLUME'
                             pnl = (current_price - entry_price) / entry_price * 100
                             position_open = False
-                            self.logger.info(f"{token_name} SELL_VOLUME signal at {i}: Price=${current_price:.2f}, Vol Slope={volume_ema_slope:.6f}, Vol EMA%={volume_ema_percentage:.2f}%, PnL={pnl:.2f}%")
+                            # SELL_VOLUME signal detected
                             
             
             signals.append({
@@ -324,6 +324,18 @@ class MomentumPortfolioSimulator:
         self.logger.info(f"Total position value: ${summary['stiffness_stats']['total_position_value']:.2f}")
         self.logger.info(f"Stiffness threshold for double positions: >{summary['stiffness_stats']['stiffness_threshold']}σ")
         
+        # Calculate how many positions should be open
+        open_positions = 0
+        for token_name, results in portfolio_results.items():
+            signals_df = results['signals']
+            if not signals_df.empty:
+                # Check if the last signal indicates an open position
+                last_signal = signals_df.iloc[-1]
+                if last_signal['position_open']:
+                    open_positions += 1
+        
+        self.logger.info(f"📊 POSITIONS TO OPEN: {open_positions} positions should be opened based on current signals")
+        
         return {
             'portfolio_results': portfolio_results,
             'summary': summary
@@ -374,21 +386,14 @@ class MomentumPortfolioSimulator:
             ax = axes[i]
             signals_df = results['signals']
             
-            # Debug: Log the exact type and structure
-            self.logger.info(f"DEBUG: {token_name} signals type: {type(signals_df)}")
-            if hasattr(signals_df, 'shape'):
-                self.logger.info(f"DEBUG: {token_name} signals shape: {signals_df.shape}")
-            if hasattr(signals_df, 'columns'):
-                self.logger.info(f"DEBUG: {token_name} signals columns: {list(signals_df.columns)}")
+            # Process signals DataFrame
             
             # Ensure signals_df is a DataFrame
             if not isinstance(signals_df, pd.DataFrame):
                 if isinstance(signals_df, np.ndarray):
                     # Convert numpy array to DataFrame if needed
                     # The numpy array should have the same structure as the original DataFrame
-                    self.logger.info(f"DEBUG: Converting numpy array for {token_name}, array shape: {signals_df.shape}")
                     signals_df = pd.DataFrame(signals_df, columns=['date', 'price', 'ema_slope', 'slope_threshold', 'volume_ema_slope', 'signal', 'position_open', 'entry_price', 'pnl', 'stiffness', 'position_multiplier', 'position_size_usd', 'leverage', 'max_leverage'])
-                    self.logger.info(f"Converted numpy array to DataFrame for {token_name}")
                 else:
                     self.logger.warning(f"Unexpected signals type for {token_name}: {type(signals_df)}")
                 continue
@@ -396,16 +401,7 @@ class MomentumPortfolioSimulator:
             # Debug: Check the structure
             self.logger.info(f"Signals DataFrame for {token_name}: shape={signals_df.shape}, columns={list(signals_df.columns)}")
             
-            # Debug: Check type right before plotting
-            self.logger.info(f"DEBUG: Right before plotting - signals_df type: {type(signals_df)}")
-            if hasattr(signals_df, 'plot'):
-                self.logger.info("DEBUG: signals_df has .plot method")
-            else:
-                self.logger.info("DEBUG: signals_df does NOT have .plot method")
-            
-            # Debug: Check column types
-            self.logger.info(f"DEBUG: date column type: {type(signals_df['date'])}")
-            self.logger.info(f"DEBUG: price column type: {type(signals_df['price'])}")
+            # Plot price data
             
             # Plot price
             ax.plot(signals_df['date'], signals_df['price'], label='Price', 
@@ -415,8 +411,7 @@ class MomentumPortfolioSimulator:
             buy_signals = signals_df[signals_df['signal'] == 'BUY']
             sell_signals = signals_df[signals_df['signal'].isin(['SELL', 'SELL_VOLUME'])]
             
-            # Debug: Check if filtering converted to numpy array
-            self.logger.info(f"DEBUG: buy_signals type: {type(buy_signals)}, sell_signals type: {type(sell_signals)}")
+            # Plot buy and sell signals
             
             if not buy_signals.empty:
                 ax.scatter(buy_signals['date'], buy_signals['price'], 
@@ -430,6 +425,17 @@ class MomentumPortfolioSimulator:
             total_pnl = results['total_pnl']
             total_trades = results['total_trades']
             win_rate = results['win_rate']
+            
+            # Get last data point information
+            last_timestamp = signals_df['date'].iloc[-1]
+            last_price = signals_df['price'].iloc[-1]
+            
+            # Add last data point annotation
+            ax.annotate(f'Last: {last_timestamp.strftime("%Y-%m-%d %H:%M")}\n${last_price:.2f}', 
+                       xy=(last_timestamp, last_price),
+                       xytext=(10, 10), textcoords='offset points',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7),
+                       fontsize=8, ha='left', va='bottom')
             
             ax.set_title(f'{token_name}\nPnL: {total_pnl:.2f}% | Trades: {total_trades} | Win Rate: {win_rate:.1f}%', 
                         fontsize=12, fontweight='bold')

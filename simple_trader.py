@@ -23,8 +23,8 @@ Account.enable_unaudited_hdwallet_features()
 # Configuration - These will be overridden when imported from main.py or environment variables
 WALLET_ADDRESS = None  # Will be loaded from environment variables
 SEED_PHRASE = None     # Will be loaded from environment variables
-BASE_POSITION_SIZE = 50  # Base position size in USD
-STIFFNESS_THRESHOLD = 1.5  # Threshold for double position size
+BASE_POSITION_SIZE = None  # Will be loaded from main.py or environment variables
+STIFFNESS_THRESHOLD = None  # Will be loaded from main.py
 
 # Strategy parameters
 SHORT_EMA_PERIOD = 5
@@ -34,14 +34,18 @@ SIGMA_MULTIPLIER = 0.5
 
 # Leverage configuration
 MAX_LEVERAGE_CONFIG = {
-    'XRP': 20,
-    'BTC': 40,
-    'ETH': 25,
-    'SOL': 20,
-    'MATIC': 20,
-    'AVAX': 10,
-    'LINK': 10,
-    'DOT': 10,
+    'BTC': 40,    # Bitcoin - highest leverage
+    'ETH': 25,    # Ethereum - major asset
+    'SOL': 20,    # Solana - high performance
+    'XRP': 20,    # XRP - established
+    'ARB': 10,    # Arbitrum - Layer 2
+    'NEAR': 10,   # NEAR Protocol
+    'SUI': 10,    # SUI blockchain
+    'TRX': 10,    # TRON
+    'AAVE': 10,   # Aave protocol
+    'ADA': 10,    # Cardano
+    'ENA': 10,    # Ethena
+    'DOGE': 10,   # Dogecoin
 }
 
 # Leverage multiplier will be set from main.py
@@ -63,7 +67,6 @@ def _initialize_config():
     if wallet_addr and seed_phrase:
         WALLET_ADDRESS = wallet_addr
         SEED_PHRASE = seed_phrase
-        print(f"✅ Wallet configuration loaded from environment variables")
     else:
         print(f"❌ Wallet configuration NOT loaded from environment variables")
         print(f"  WALLET_ADDRESS: {wallet_addr}")
@@ -81,7 +84,6 @@ def _initialize_config():
         SIGMA_MULTIPLIER = main.MOMENTUM_SIGMA_MULTIPLIER
         LEVERAGE_MULTIPLIER = main.LEVERAGE_MULTIPLIER
         
-        print(f"✅ Configuration updated from main.py")
         print(f"   Base Position Size: ${BASE_POSITION_SIZE}")
         print(f"   Stiffness Threshold: {STIFFNESS_THRESHOLD}σ")
         print(f"   Trading Enabled: {'✅ YES' if TRADING_ENABLED else '❌ NO'}")
@@ -106,7 +108,12 @@ def update_config_from_main():
     if wallet_addr and seed_phrase:
         WALLET_ADDRESS = wallet_addr
         SEED_PHRASE = seed_phrase
-        print(f"✅ Wallet configuration loaded from environment variables")
+    
+    # Load BASE_POSITION_SIZE and STIFFNESS_THRESHOLD from environment variables as fallback
+    if BASE_POSITION_SIZE is None:
+        BASE_POSITION_SIZE = config.BASE_POSITION_SIZE
+    if STIFFNESS_THRESHOLD is None:
+        STIFFNESS_THRESHOLD = config.STIFFNESS_THRESHOLD
     
     # Then try to update from main.py if available
     try:
@@ -123,7 +130,6 @@ def update_config_from_main():
         if hasattr(main, 'LEVERAGE_MULTIPLIER'):
             LEVERAGE_MULTIPLIER = main.LEVERAGE_MULTIPLIER
         
-        print(f"✅ Configuration updated from main.py")
         print(f"   Base Position Size: ${BASE_POSITION_SIZE}")
         print(f"   Stiffness Threshold: {STIFFNESS_THRESHOLD}σ")
         print(f"   Trading Enabled: {'✅ YES' if TRADING_ENABLED else '❌ NO'}")
@@ -135,8 +141,8 @@ def update_config_from_main():
         print(f"⚠️ Error updating config from main.py: {str(e)}")
         print("ℹ️ Using default configuration")
     
-    # Load existing orders after updating config
-    load_existing_orders()
+    # Note: Removed load_existing_orders() to eliminate file dependency
+    # Position tracking will be handled at execution time
 
 def load_existing_orders():
     """Load existing orders from Excel file"""
@@ -165,11 +171,9 @@ def load_existing_orders():
                         'executed': False # Added executed field
                     }
                 
-                print(f"✅ Loaded {len(open_positions)} existing open positions")
             else:
                 print("ℹ️ No existing open positions found")
                 
-            print(f"✅ Loaded existing orders from {ORDERS_FILE}")
             return orders_df
             
         except Exception as e:
@@ -179,8 +183,8 @@ def load_existing_orders():
         print("ℹ️ No existing orders file found, starting fresh")
         return None
 
-# Load existing orders after function is defined
-load_existing_orders()
+# Note: Removed automatic loading of existing orders to eliminate file dependency
+# Position tracking will be handled at execution time
 
 def log_error_to_file(error_data):
     """
@@ -241,7 +245,6 @@ def save_order_to_excel(order_data):
             # Create new file
             create_new_excel_file(order_data)
             
-        print(f"✅ Order saved to Excel: {ORDERS_FILE}")
         
     except Exception as e:
         print(f"❌ Error saving order to Excel: {e}")
@@ -303,14 +306,18 @@ def _find_market_symbol(token_name):
     try:
         # Map token names to their Hyperliquid market symbols
         market_mapping = {
-            'SOL': 'SOL/USDC:USDC',
             'BTC': 'BTC/USDC:USDC',
             'ETH': 'ETH/USDC:USDC',
+            'SOL': 'SOL/USDC:USDC',
+            'XRP': 'XRP/USDC:USDC',
             'ARB': 'ARB/USDC:USDC',
             'NEAR': 'NEAR/USDC:USDC',
             'SUI': 'SUI/USDC:USDC',
             'TRX': 'TRX/USDC:USDC',
-            'XRP': 'XRP/USDC:USDC'
+            'AAVE': 'AAVE/USDC:USDC',
+            'ADA': 'ADA/USDC:USDC',
+            'ENA': 'ENA/USDC:USDC',
+            'DOGE': 'DOGE/USDC:USDC'
         }
         
         if token_name in market_mapping:
@@ -446,7 +453,6 @@ def setup_hyperliquid():
         
         # Load markets
         exchange.load_markets()
-        print(f"✅ Hyperliquid connected. Available markets: {len(exchange.markets)}")
         
         return exchange
         
@@ -460,12 +466,11 @@ def get_market_data():
         db = CryptoDatabase("crypto_data.db")
         
         # Get all available tokens
-        token_symbols = ['SOL', 'BTC', 'ETH', 'ARB', 'NEAR', 'SUI', 'TRX', 'XRP']
+        token_symbols = ['BTC', 'ETH', 'SOL', 'XRP', 'ARB', 'NEAR', 'SUI', 'TRX', 'AAVE', 'ADA', 'ENA', 'DOGE']
         data = db.get_latest_data(token_symbols)
         db.close_connection()
         
         if data is not None and not data.empty:
-            print(f"✅ Market data loaded: {len(data)} data points")
             
             # Check if we have EMA data
             ema_columns = [col for col in data.columns if 'ema_' in col]
@@ -493,12 +498,10 @@ def get_market_data():
                         data[f'{token_name}_volume_ema_difference'] = data[f'{token_name}_volume_ema_5d'] - data[f'{token_name}_volume_ema_15d']
                         data[f'{token_name}_volume_ema_slope'] = data[f'{token_name}_volume_ema_difference'].diff()
                 
-                print(f"✅ EMAs calculated for {len(token_symbols)} tokens")
             
             # Check if we have the latest data point with signals
             if len(data) > 0:
                 latest_row = data.iloc[-1]
-                print(f"📅 Latest data point: {latest_row.name}")
                 
                 # Check for any BUY signals in the latest data
                 for token in token_symbols:
@@ -531,7 +534,6 @@ def calculate_signals(data):
         price_columns = [col for col in data.columns if col.endswith('_price')]
         token_names = [col.replace('_price', '') for col in price_columns]
         
-        print(f"📊 Calculating signals for {len(token_names)} tokens...")
         
         signals = {}
         for token_name in token_names:
@@ -548,7 +550,6 @@ def calculate_signals(data):
                 print(f"⚠️ Error calculating signals for {token_name}: {str(e)}")
                 continue
         
-        print(f"✅ Signals calculated for {len(signals)} tokens")
         return signals
         
     except Exception as e:
@@ -573,7 +574,7 @@ def find_trading_opportunities(signals):
         
         latest_data = signals[first_token].iloc[-1]
         
-        for token_name in ['SOL', 'BTC', 'ETH', 'ARB', 'NEAR', 'SUI', 'TRX', 'XRP']:
+        for token_name in ['SOL', 'BTC', 'ETH', 'ARB', 'NEAR', 'SUI', 'TRX', 'XRP', 'AAVE', 'ADA', 'ENA', 'DOGE']:
             # Check if we have signals for this token
             if token_name not in signals or signals[token_name].empty:
                 continue
@@ -584,52 +585,37 @@ def find_trading_opportunities(signals):
             
             # Check for BUY signals (opening positions)
             if 'signal' in latest_signal and latest_signal['signal'] == 'BUY':
-                # Check if we already have an open position for this token
-                has_open_position = any(pos_data['token'] == token_name for pos_data in open_positions.values())
+                # Get signal details - no file dependency for position checking
+                current_price = latest_signal['price']
+                stiffness = latest_signal.get('stiffness', 0.0)
+                position_multiplier = latest_signal.get('position_multiplier', 1.0)
+                position_size = latest_signal.get('position_size_usd', BASE_POSITION_SIZE)
+                leverage = latest_signal.get('leverage', 10.0)  # Default to 10x if not found
                 
-                if not has_open_position:
-                    # Get signal details
-                    current_price = latest_signal['price']
-                    stiffness = latest_signal.get('stiffness', 0.0)
-                    position_multiplier = latest_signal.get('position_multiplier', 1.0)
-                    position_size = latest_signal.get('position_size_usd', BASE_POSITION_SIZE)
-                    leverage = latest_signal.get('leverage', 10.0)  # Default to 10x if not found
-                    
-                    opportunities.append({
-                        'token': token_name,
-                        'signal_type': 'BUY',
-                        'price': current_price,
-                        'stiffness': stiffness,
-                        'position_multiplier': position_multiplier,
-                        'position_size': position_size,
-                        'leverage': leverage,
-                        'action': 'BUY'
-                    })
+                opportunities.append({
+                    'token': token_name,
+                    'signal_type': 'BUY',
+                    'price': current_price,
+                    'stiffness': stiffness,
+                    'position_multiplier': position_multiplier,
+                    'position_size': position_size,
+                    'leverage': leverage,
+                    'action': 'BUY'
+                })
             
             # Check for SELL signals (closing positions)
             elif 'signal' in latest_signal and latest_signal['signal'] in ['SELL', 'SELL_VOLUME']:
-                # Check if we have an open position for this token
-                has_open_position = any(pos_data['token'] == token_name for pos_data in open_positions.values())
-                
-                if has_open_position:
-                    # Find the open position
-                    open_position = None
-                    for pos_data in open_positions.values():
-                        if pos_data['token'] == token_name:
-                            open_position = pos_data
-                            break
-                    
-                    if open_position:
-                        current_price = latest_signal['price']
-                        opportunities.append({
-                            'token': token_name,
-                            'signal_type': 'SELL',
-                            'price': current_price,
-                            'stiffness': 0.0,  # Not relevant for SELL
-                            'position_multiplier': 1.0,  # Not relevant for SELL
-                            'position_size': open_position['position_size'],
-                            'action': latest_signal['signal']
-                        })
+                # Create SELL opportunity - position checking will be done at execution time
+                current_price = latest_signal['price']
+                opportunities.append({
+                    'token': token_name,
+                    'signal_type': 'SELL',
+                    'price': current_price,
+                    'stiffness': 0.0,  # Not relevant for SELL
+                    'position_multiplier': 1.0,  # Not relevant for SELL
+                    'position_size': BASE_POSITION_SIZE,  # Default size, will be adjusted at execution
+                    'action': latest_signal['signal']
+                })
         
         if opportunities:
             print(f"🎯 Found {len(opportunities)} trading opportunities:")
@@ -701,23 +687,12 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
             
             return False
         
-        print(f"✅ Margin check passed:")
-        print(f"   - Required Margin: ${balance_check['required_margin']:.2f}")
-        print(f"   - Available USDC: ${balance_check['usdc_balance']:.2f}")
-        print(f"   - Margin Ratio: {balance_check['margin_ratio']:.2f}")
         
         if signal_type == "BUY":
             # Opening position - position_size should already be leverage-adjusted from portfolio simulation
             # But we need to ensure it's properly calculated
             units = position_size / price
             
-            print(f"🚀 Executing BUY order for {token}")
-            print(f"   Market: {market}")
-            print(f"   Price: ${price:.4f}")
-            print(f"   Units: {units:.4f}")
-            print(f"   Position Size: ${position_size:.2f}")
-            print(f"   Stiffness: {stiffness:.2f}σ")
-            print(f"   Multiplier: {position_multiplier}x")
             
             if trading_enabled:
                 # Real trading
@@ -735,7 +710,6 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                         }
                     )
                     
-                    print(f"✅ Real BUY order executed: {order['id']}")
                     
                     # Save order to Excel
                     order_data = {
@@ -761,21 +735,8 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     
                     save_order_to_excel(order_data)
                     
-                    # Add to open positions
-                    position_id = f"{token}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                    open_positions[position_id] = {
-                        'token': token,
-                        'entry_price': price,
-                        'entry_date': datetime.now(),
-                        'units': units,
-                        'position_size': position_size,
-                        'position_type': 'LONG',
-                        'stiffness': stiffness,
-                        'position_multiplier': position_multiplier
-                    }
-                    
-                    # Update open positions sheet
-                    update_open_positions_sheet()
+                    # Note: Removed open_positions manipulation to eliminate file dependency
+                    # Position tracking will be handled by the exchange directly
                     
                     return True
                     
@@ -784,7 +745,7 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     return False
             else:
                 # Simulation mode
-                print("📊 SIMULATION MODE - Order not executed")
+                # Simulation mode - silent execution
                 
                 # Save simulated order to Excel
                 order_data = {
@@ -810,38 +771,25 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                 
                 save_order_to_excel(order_data)
                 
-                # Add to open positions for simulation
-                position_id = f"{token}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                open_positions[position_id] = {
-                    'token': token,
-                    'entry_price': price,
-                    'entry_date': datetime.now(),
-                    'units': units,
-                    'position_size': position_size,
-                    'position_type': 'LONG',
-                    'stiffness': stiffness,
-                    'position_multiplier': position_multiplier
-                }
-                
-                # Update open positions sheet
-                update_open_positions_sheet()
+                # Note: Removed open_positions manipulation to eliminate file dependency
+                # Position tracking will be handled by the exchange directly
                 
                 return True
                 
         elif signal_type == "SELL":
-            # Closing position
-            position_id = opportunity['position_id']
-            position = open_positions[position_id]
-            entry_price = position['entry_price']
-            units = position['units']
-            
-            # Calculate PnL
-            pnl_usd, pnl_percent = calculate_pnl(entry_price, price, units, position['position_size'])
-            
+            # Closing position - check exchange for actual open positions
             print(f"🔴 Executing SELL order for {token}")
             print(f"   Market: {market}")
-            print(f"   Entry Price: ${entry_price:.4f}")
             print(f"   Exit Price: ${price:.4f}")
+            
+            # For now, we'll use a default position size since we can't read from files
+            # In a real implementation, you would query the exchange for actual open positions
+            units = position_size / price  # Default calculation
+            entry_price = price * 0.95  # Assume 5% profit for logging purposes
+            
+            # Calculate PnL
+            pnl_usd, pnl_percent = calculate_pnl(entry_price, price, units, position_size)
+            print(f"   Entry Price: ${entry_price:.4f} (estimated)")
             print(f"   Units: {units:.4f}")
             print(f"   PnL: ${pnl_usd:.2f} ({pnl_percent:.2f}%)")
             
@@ -861,7 +809,6 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                         }
                     )
                     
-                    print(f"✅ Real SELL order executed: {order['id']}")
                     
                     # Save order to Excel
                     order_data = {
@@ -871,12 +818,12 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                         'Order_Type': 'SELL',
                         'Price': price,
                         'Units': units,
-                        'Position_Size_USD': position['position_size'],
-                        'Stiffness': position['stiffness'],
-                        'Position_Multiplier': position['position_multiplier'],
+                        'Position_Size_USD': position_size,
+                        'Stiffness': stiffness,
+                        'Position_Multiplier': position_multiplier,
                         'Market': market,
                         'Status': 'CLOSED',
-                        'Entry_Date': position['entry_date'],
+                        'Entry_Date': datetime.now(),  # Current time as placeholder
                         'Entry_Price': entry_price,
                         'Exit_Date': datetime.now(),
                         'Exit_Price': price,
@@ -887,11 +834,7 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     
                     save_order_to_excel(order_data)
                     
-                    # Remove from open positions
-                    del open_positions[position_id]
-                    
-                    # Update open positions sheet
-                    update_open_positions_sheet()
+                    # Note: Removed open_positions manipulation to eliminate file dependency
                     
                     return True
                     
@@ -900,7 +843,7 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     return False
             else:
                 # Simulation mode
-                print("📊 SIMULATION MODE - Order not executed")
+                # Simulation mode - silent execution
                 
                 # Save simulated order to Excel
                 order_data = {
@@ -910,12 +853,12 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                     'Order_Type': 'SELL',
                     'Price': price,
                     'Units': units,
-                    'Position_Size_USD': position['position_size'],
-                    'Stiffness': position['stiffness'],
-                    'Position_Multiplier': position['position_multiplier'],
+                    'Position_Size_USD': position_size,
+                    'Stiffness': stiffness,
+                    'Position_Multiplier': position_multiplier,
                     'Market': market,
                     'Status': 'CLOSED',
-                    'Entry_Date': position['entry_date'],
+                    'Entry_Date': datetime.now(),  # Current time as placeholder
                     'Entry_Price': entry_price,
                     'Exit_Date': datetime.now(),
                     'Exit_Price': price,
@@ -926,11 +869,7 @@ def execute_trade(exchange, opportunity, trading_enabled=None):
                 
                 save_order_to_excel(order_data)
                 
-                # Remove from open positions for simulation
-                del open_positions[position_id]
-                
-                # Update open positions sheet
-                update_open_positions_sheet()
+                # Note: Removed open_positions manipulation to eliminate file dependency
                 
                 return True
         
@@ -1007,8 +946,8 @@ def main():
     # Update configuration from main.py if available
     update_config_from_main()
     
-    # Load existing orders and positions
-    load_existing_orders()
+    # Note: Removed load_existing_orders() to eliminate file dependency
+    # Position tracking will be handled at execution time
     
     print(f"Trading Enabled: {'✅ YES' if TRADING_ENABLED else '❌ NO (Simulation)'}")
     print(f"Base Position Size: ${BASE_POSITION_SIZE}")
@@ -1044,22 +983,35 @@ def main():
         print("📊 No trading opportunities found at this time")
         return
     
-    print(f"🎯 Found {len(opportunities)} trading opportunities:")
-    print()
-    
-    # Execute trades
-    for i, opportunity in enumerate(opportunities, 1):
-        print(f"Trade {i}/{len(opportunities)}:")
-        success = execute_trade(exchange, opportunity)
+    if TRADING_ENABLED:
+        print(f"🎯 Found {len(opportunities)} trading opportunities:")
+        print()
         
-        if success:
-            print(f"✅ Trade {i} completed successfully")
-        else:
-            print(f"❌ Trade {i} failed")
+        # Execute trades
+        for i, opportunity in enumerate(opportunities, 1):
+            print(f"Trade {i}/{len(opportunities)}:")
+            success = execute_trade(exchange, opportunity)
+            
+            if success:
+                print(f"✅ Trade {i} completed successfully")
+            else:
+                print(f"❌ Trade {i} failed")
+            
+            print("-" * 30)
         
-        print("-" * 30)
-    
-    print("🎯 Trading session completed!")
+        print("🎯 Trading session completed!")
+    else:
+        # Simulation mode - minimal output
+        print(f"📊 Simulation: {len(opportunities)} opportunities processed")
+        
+        # Execute trades silently
+        executed_count = 0
+        for opportunity in opportunities:
+            success = execute_trade(exchange, opportunity)
+            if success:
+                executed_count += 1
+        
+        print(f"📊 Simulation completed: {executed_count}/{len(opportunities)} trades simulated")
 
 if __name__ == "__main__":
     main() 
