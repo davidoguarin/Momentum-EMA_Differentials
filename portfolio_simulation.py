@@ -108,9 +108,41 @@ class MomentumPortfolioSimulator:
             data[f'{token_name}_volume_ema_difference'] = data[volume_ema_short_col] - data[volume_ema_long_col]
             data[f'{token_name}_volume_ema_slope'] = data[f'{token_name}_volume_ema_difference'].diff()
         else:
-            data[f'{token_name}_volume_ema_slope'] = 0
+            # If volume data is not available, set to NaN to prevent false signals
+            data[f'{token_name}_volume_ema_slope'] = np.nan
         
         return data
+    
+    def validate_signal_conditions(self, ema_slope: float, slope_threshold: float, 
+                                 volume_ema_slope: float, position_open: bool) -> Tuple[bool, str]:
+        """
+        Validate that all conditions for opening a position are met
+        
+        Returns:
+            Tuple of (is_valid, reason)
+        """
+        if position_open:
+            return False, "Position already open"
+        
+        if pd.isna(ema_slope):
+            return False, "EMA slope is NaN"
+            
+        if pd.isna(volume_ema_slope):
+            return False, "Volume EMA slope is NaN"
+            
+        # CRITICAL: EMA slope must be positive (upward momentum)
+        if ema_slope <= 0:
+            return False, f"EMA slope {ema_slope:.6f} <= 0 (not upward)"
+            
+        # EMA slope must exceed adaptive threshold
+        if ema_slope <= slope_threshold:
+            return False, f"EMA slope {ema_slope:.6f} <= threshold {slope_threshold:.6f}"
+            
+        # Volume EMA slope must be positive (increasing volume)
+        if volume_ema_slope <= 0:
+            return False, f"Volume EMA slope {volume_ema_slope:.6f} <= 0 (not increasing)"
+            
+        return True, "All conditions met"
     
     def calculate_momentum_signals(self, data: pd.DataFrame, token_name: str, 
                                  short_period: int = 5, long_period: int = 20) -> pd.DataFrame:
@@ -170,8 +202,11 @@ class MomentumPortfolioSimulator:
             signal = 'HOLD'
             pnl = 0
             
-            # Entry signal: EMA Slope > Adaptive Threshold AND Volume EMA Slope > 0
-            if not position_open and ema_slope > slope_threshold and volume_ema_slope > 0:
+            # Entry signal: EMA Slope must be POSITIVE AND > Adaptive Threshold AND Volume EMA Slope > 0
+            # Use validation function to ensure all conditions are met
+            is_valid, reason = self.validate_signal_conditions(ema_slope, slope_threshold, volume_ema_slope, position_open)
+            
+            if is_valid:
                 signal = 'BUY'
                 position_open = True
                 entry_price = current_price
@@ -183,11 +218,14 @@ class MomentumPortfolioSimulator:
                 multiplier_info = f"Position Size: ${position_size_usd:.2f} ({position_multiplier}x USD, {leverage_info['leverage']:.1f}x leverage)"
                 
                 # BUY signal detected
-                
-            
+                self.logger.info(f"✅ BUY signal for {token_name}: EMA slope {ema_slope:.6f} > 0 (upward) AND > threshold {slope_threshold:.6f}, Volume slope {volume_ema_slope:.6f} > 0")
+            else:
+                # Log why BUY signal was not generated (for debugging)
+                if not position_open:  # Only log if we don't already have a position
+                    self.logger.debug(f"❌ {token_name}: {reason}")
             
             # Exit signals
-            elif position_open:
+            if position_open:
                 # Exit signal 1: EMA Slope < 0 (momentum turning negative)
                 if ema_slope < 0:
                     signal = 'SELL'

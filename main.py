@@ -26,10 +26,10 @@ DISPLAY_PLOTS = False  # Set to True to display plots, False to just save them
 MOMENTUM_SHORT_PERIOD = 5  # Short EMA period for momentum strategy
 MOMENTUM_LONG_PERIOD = 15  # Long EMA period for momentum strategy
 MOMENTUM_SLOPE_WINDOW = 30  # Rolling window for slope distribution
-MOMENTUM_SIGMA_MULTIPLIER = 0.1  # Sigma multiplier for adaptive threshold
+MOMENTUM_SIGMA_MULTIPLIER = 0.01  # Sigma multiplier for adaptive threshold
 
 # Trading parameters
-BASE_POSITION_SIZE = 90  # Base position size in USD
+BASE_POSITION_SIZE = 120  # Base position size in USD
 STIFFNESS_THRESHOLD = 0.5 # Threshold for double position size
 TRADING_ENABLED = True # Set to True to execute real trades (not just simulation)
 LEVERAGE_MULTIPLIER = 1  # Leverage multiplier (0.0 = no leverage, 1.0 = max leverage)
