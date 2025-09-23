@@ -372,41 +372,52 @@ def process_historical_data_with_volume(historical_data: Dict, coin_symbol: str,
     if prices_df.empty or volumes_df.empty:
         return pd.DataFrame()
     
+    # Get current hour first
+    current_time = datetime.now()
+    current_hour_beginning = current_time.replace(minute=0, second=0, microsecond=0)
+    
     # Create daily time series directly from the raw data
     result_df = extract_daily_data_from_raw(prices_df, volumes_df, coin_symbol)
     
-    # Add the last available data point from the API as the final point
+    # CRITICAL: Remove any data points AFTER the current hour
+    # This ensures current hour is truly the last point
+    result_df = result_df[result_df.index <= current_hour_beginning]
+    
+    # Clean the data to ensure only 00:00, 12:00, and current hour points
+    result_df = clean_data_to_12_hour_pattern(result_df, coin_symbol)
+    
+    # Ensure the current hour is the final point
     if not result_df.empty and len(prices_data) > 0:
         # Get the last timestamp and price from the API data
         last_api_timestamp = prices_data[-1][0]  # Last timestamp from API
         last_api_price = prices_data[-1][1]      # Last price from API
         
-        # Convert timestamp to datetime
-        last_api_datetime = pd.to_datetime(last_api_timestamp, unit='ms')
-        
         # Get the last volume from the API data
         last_api_volume = volumes_data[-1][1] if len(volumes_data) > 0 else 0
         
-        # IMPORTANT: Round the last API timestamp to the beginning of the current hour
-        # This ensures we have exactly one point at the current hour, not multiple random minutes
-        current_hour_beginning = last_api_datetime.replace(minute=0, second=0, microsecond=0)
+        # Check if we already have a data point at the current hour
+        existing_current_hour = result_df[result_df.index == current_hour_beginning]
         
-        # CRITICAL FIX: Check if we already have ANY data point at the current hour
-        # This prevents adding multiple points when crossing day boundaries
-        existing_hour_points = result_df[result_df.index.hour == current_hour_beginning.hour]
-        
-        if existing_hour_points.empty:
-            # No data point exists for this hour, add it
-            last_api_data = pd.DataFrame({
+        if existing_current_hour.empty:
+            # No data point exists for current hour, add it as the FINAL point
+            current_hour_data = pd.DataFrame({
                 f'{coin_symbol}_price': [last_api_price],
                 f'{coin_symbol}_volume': [last_api_volume]
             }, index=[current_hour_beginning])
             
-            # Append the last API data point
-            result_df = pd.concat([result_df, last_api_data])
-            logger.info(f"Added last API data point for {coin_symbol}: ${last_api_price} at {current_hour_beginning} (rounded to hour beginning)")
+            # Append the current hour data point
+            result_df = pd.concat([result_df, current_hour_data])
+            logger.info(f"Added current hour as FINAL data point for {coin_symbol}: ${last_api_price} at {current_hour_beginning}")
         else:
-            logger.info(f"Data point already exists for hour {current_hour_beginning.hour}:00 for {coin_symbol}, skipping duplicate")
+            logger.info(f"Current hour data point already exists for {coin_symbol} at {current_hour_beginning}")
+    
+    # Final verification: ensure current hour is the last point
+    if not result_df.empty:
+        last_point_time = result_df.index[-1]
+        if last_point_time != current_hour_beginning:
+            logger.warning(f"Current hour is not the last point! Last point: {last_point_time}, Current hour: {current_hour_beginning}")
+        else:
+            logger.info(f"✅ Current hour {current_hour_beginning} is confirmed as the last data point for {coin_symbol}")
     
     return result_df
 
@@ -1501,6 +1512,52 @@ def fetch_specific_crypto_data(api_key: Optional[str] = None, db_path: str = "cr
     if not all_data:
         logger.error("No valid historical data found")
         return {}
+
+def clean_data_to_12_hour_pattern(df: pd.DataFrame, coin_symbol: str) -> pd.DataFrame:
+    """
+    Clean data to ensure only 00:00, 12:00, and current hour data points exist
+    Current hour must be the LAST point
+    
+    Args:
+        df: DataFrame with price and volume data
+        coin_symbol: Symbol of the coin
+        
+    Returns:
+        Cleaned DataFrame with only 00:00, 12:00, and current hour points
+    """
+    if df.empty:
+        return df
+    
+    # Get current hour
+    current_time = datetime.now()
+    current_hour = current_time.replace(minute=0, second=0, microsecond=0)
+    
+    # Filter to keep only:
+    # 1. Points at 00:00 (midnight)
+    # 2. Points at 12:00 (noon) 
+    # 3. Current hour point (must be the last)
+    valid_points = []
+    
+    for idx, timestamp in enumerate(df.index):
+        hour = timestamp.hour
+        minute = timestamp.minute
+        
+        # Keep if it's exactly 00:00 or 12:00 AND not after current hour
+        if ((hour == 0 and minute == 0) or (hour == 12 and minute == 0)) and timestamp <= current_hour:
+            valid_points.append(idx)
+        # Keep if it's the current hour
+        elif timestamp == current_hour:
+            valid_points.append(idx)
+    
+    # Return only valid points
+    cleaned_df = df.iloc[valid_points].copy()
+    
+    # Sort by timestamp to ensure proper order
+    cleaned_df = cleaned_df.sort_index()
+    
+    logger.info(f"Cleaned {coin_symbol} data: kept {len(valid_points)} out of {len(df)} points")
+    
+    return cleaned_df
 
 def update_current_hour_data(api_key: Optional[str] = None, db_path: str = "crypto_data.db") -> Dict:
     """

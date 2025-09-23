@@ -356,14 +356,14 @@ class CryptoDatabase:
     
     def get_latest_data(self, token_symbols: List[str], days: int = 365) -> pd.DataFrame:
         """
-        Get the latest data for specified tokens
+        Get the latest data for specified tokens with 12-hour pattern filtering
         
         Args:
             token_symbols: List of token symbols
             days: Number of days of data to retrieve
             
         Returns:
-            DataFrame with price and volume data
+            DataFrame with price and volume data (only 00:00, 12:00, and current hour)
         """
         try:
             # Calculate start date
@@ -404,12 +404,56 @@ class CryptoDatabase:
             combined_df = pd.concat([price_df, volume_df], axis=1)
             combined_df = combined_df.sort_index()
             
+            # Apply 12-hour pattern filtering
+            combined_df = self._filter_to_12_hour_pattern(combined_df)
+            
             logger.info(f"Retrieved {len(combined_df)} data points for {len(token_symbols)} tokens")
             return combined_df
             
         except Exception as e:
             logger.error(f"Error retrieving data from database: {str(e)}")
             return pd.DataFrame()
+    
+    def _filter_to_12_hour_pattern(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Filter data to only include 00:00, 12:00, and current hour data points
+        
+        Args:
+            df: DataFrame with timestamp index
+            
+        Returns:
+            Filtered DataFrame with only valid time points
+        """
+        if df.empty:
+            return df
+        
+        # Get current hour
+        current_time = datetime.now()
+        current_hour = current_time.replace(minute=0, second=0, microsecond=0)
+        
+        # Filter to keep only:
+        # 1. Points at 00:00 (midnight)
+        # 2. Points at 12:00 (noon) 
+        # 3. Current hour point (must be the last)
+        valid_timestamps = []
+        
+        for timestamp in df.index:
+            hour = timestamp.hour
+            minute = timestamp.minute
+            
+            # Keep if it's exactly 00:00 or 12:00 AND not after current hour
+            if ((hour == 0 and minute == 0) or (hour == 12 and minute == 0)) and timestamp <= current_hour:
+                valid_timestamps.append(timestamp)
+            # Keep if it's the current hour
+            elif timestamp == current_hour:
+                valid_timestamps.append(timestamp)
+        
+        # Return only valid timestamps
+        filtered_df = df.loc[valid_timestamps].copy()
+        
+        logger.info(f"Filtered data: kept {len(filtered_df)} out of {len(df)} data points")
+        
+        return filtered_df
     
     def get_latest_ema_data(self, token_symbols: List[str], days: int = 365) -> pd.DataFrame:
         """
